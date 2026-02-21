@@ -19,25 +19,52 @@ export function UploadBook() {
         }
 
         setIsUploading(true);
-        const formData = new FormData();
-        formData.append("file", file);
 
         try {
+            // 1. Upload directly to Supabase Storage
+            const { createClient } = await import("@supabase/supabase-js");
+            const supabase = createClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+            );
+
+            const uniqueFileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from("pdfs")
+                .upload(uniqueFileName, file, {
+                    cacheControl: "3600",
+                    upsert: false
+                });
+
+            if (uploadError) {
+                console.error("Supabase storage error:", uploadError);
+                throw new Error("Failed to upload to Supabase Storage. Did you create a public 'pdfs' bucket?");
+            }
+
+            // 2. Register the uploaded file with our backend database
+            const { data: { publicUrl } } = supabase.storage.from("pdfs").getPublicUrl(uniqueFileName);
+
             const res = await fetch("/api/upload", {
                 method: "POST",
-                body: formData,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: file.name.replace(/\.[^/.]+$/, ""),
+                    fileName: uniqueFileName,
+                    filePath: publicUrl // We store the public URL directly now!
+                }),
             });
 
             if (!res.ok) {
-                throw new Error("Upload failed");
+                throw new Error("Failed to save book record to database");
             }
 
             const data = await res.json();
             router.push(`/reader/${data.book.id}`);
             router.refresh();
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
-            alert("Failed to upload the book");
+            alert(err.message || "Failed to upload the book");
         } finally {
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = "";

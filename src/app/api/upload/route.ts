@@ -26,35 +26,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const formData = await req.formData();
-    const file = formData.get("file") as File | null;
+    const { title, fileName, filePath } = await req.json();
 
-    if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+    if (!title || !fileName || !filePath) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
-
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    // Save to Vercel's ephemeral /tmp file directory
-    const uploadDir = join("/tmp", "uploads");
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
-    // Generate a unique filename
-    const uniqueFileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-    const filePath = join(uploadDir, uniqueFileName);
-
-    await writeFile(filePath, buffer);
 
     // Save to Database
     const book = await prisma.book.create({
       data: {
-        title: file.name.replace(/\.[^/.]+$/, ""), // title without extension
-        fileName: uniqueFileName,
-        filePath: filePath,
-        userId: (session.user as any).id,
+        title,
+        fileName,
+        filePath,
+        user: {
+          connect: {
+            id: (session.user as any).id
+          }
+        }
       },
     });
 

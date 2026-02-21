@@ -14,7 +14,7 @@ export function ClientReaderLayout({ book }: { book: any }) {
         <div style={{ display: 'flex', height: 'calc(100vh - 4rem)', overflow: 'hidden' }}>
             <div style={{ flex: 1, borderRight: '1px solid var(--surface-border)', position: 'relative' }}>
                 <PDFViewer
-                    bookId={book.id}
+                    pdfUrl={book.filePath.startsWith("http") ? book.filePath : `/api/books/${book.id}/pdf`}
                     bookTitle={book.title}
                     currentPage={currentPage}
                     onPageChange={setCurrentPage}

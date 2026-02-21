@@ -10,12 +10,12 @@ import "react-pdf/dist/Page/TextLayer.css";
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 export function PDFViewer({
-    bookId,
+    pdfUrl,
     bookTitle,
     currentPage,
     onPageChange
 }: {
-    bookId: string;
+    pdfUrl: string;
     bookTitle: string;
     currentPage: number;
     onPageChange: (page: number) => void;
@@ -89,7 +89,7 @@ export function PDFViewer({
             }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <Document
-                        file={`/api/books/${bookId}/pdf`}
+                        file={pdfUrl}
                         onLoadSuccess={onDocumentLoadSuccess}
                         loading={
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '2rem' }}>
