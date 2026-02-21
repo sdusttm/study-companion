@@ -36,8 +36,8 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Save to file system
-    const uploadDir = join(process.cwd(), "uploads");
+    // Save to Vercel's ephemeral /tmp file directory
+    const uploadDir = join("/tmp", "uploads");
     if (!existsSync(uploadDir)) {
       await mkdir(uploadDir, { recursive: true });
     }
