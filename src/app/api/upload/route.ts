@@ -6,6 +6,17 @@ import { existsSync } from "fs";
 import { getServerSession } from "@/lib/auth";
 import { authOptions } from "@/lib/auth";
 
+export const maxDuration = 60; // Allow upload to take up to 60 seconds on Vercel
+
+export const dynamic = 'force-dynamic';
+
+export const config = {
+  api: {
+    bodyParser: false,
+    responseLimit: false,
+  },
+};
+
 const prisma = new PrismaClient();
 
 export async function POST(req: NextRequest) {
