@@ -20,6 +20,7 @@ jest.mock('next/navigation', () => ({
 describe('NoteSidebar Component', () => {
     beforeEach(() => {
         (global.fetch as jest.Mock).mockClear()
+        window.HTMLElement.prototype.scrollIntoView = jest.fn()
     })
 
     it('renders loading state initially, then empty notes message', async () => {
@@ -35,7 +36,7 @@ describe('NoteSidebar Component', () => {
 
 
         await waitFor(() => {
-            expect(screen.getByText(/No notes for this page yet/i)).toBeInTheDocument()
+            expect(screen.getByText(/No notes yet\. Add one below to start!/i)).toBeInTheDocument()
         })
 
         expect(global.fetch).toHaveBeenCalledWith('/api/books/123/notes')
@@ -76,7 +77,7 @@ describe('NoteSidebar Component', () => {
         render(<NoteSidebar bookId="123" currentPage={1} />)
 
         await waitFor(() => {
-            expect(screen.getByText(/No notes for this page yet/i)).toBeInTheDocument()
+            expect(screen.getByText(/No notes yet\. Add one below to start!/i)).toBeInTheDocument()
         })
 
         const textarea = screen.getByPlaceholderText(/Add a note for Page 1/i)

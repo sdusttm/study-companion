@@ -7,8 +7,21 @@ import { NoteSidebar } from "./NoteSidebar";
 
 export function ClientReaderLayout({ book }: { book: any }) {
     const searchParams = useSearchParams();
-    const initialPage = parseInt(searchParams.get("page") || book.lastPage?.toString() || "1", 10);
-    const [currentPage, setCurrentPage] = useState(initialPage);
+    const pageParam = searchParams.get("page");
+    const bookLastPage = book.lastPage?.toString() || "1";
+
+    const [currentPage, setCurrentPage] = useState(() =>
+        parseInt(pageParam || bookLastPage, 10)
+    );
+
+    useEffect(() => {
+        if (pageParam) {
+            const pageNum = parseInt(pageParam, 10);
+            if (!isNaN(pageNum) && pageNum !== currentPage) {
+                setCurrentPage(pageNum);
+            }
+        }
+    }, [pageParam]);
 
     return (
         <div style={{ display: 'flex', height: 'calc(100vh - 4rem)', overflow: 'hidden' }}>

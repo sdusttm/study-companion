@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Loader2, Send } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Loader2, Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPage: number }) {
     const [activeTab, setActiveTab] = useState<"notes" | "bookmarks">("notes");
+    const activeNoteRef = useRef<HTMLDivElement>(null);
 
     // Notes Status
     const [notes, setNotes] = useState<any[]>([]);
@@ -90,7 +91,45 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
         }
     };
 
-    const pageNotes = notes.filter(n => n.pageNumber === currentPage);
+    useEffect(() => {
+        if (activeTab === "notes" && activeNoteRef.current && !isLoadingNotes) {
+            activeNoteRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+    }, [currentPage, activeTab, isLoadingNotes, notes.length]);
+
+    const notesByPage = useMemo(() => {
+        const grouped = notes.reduce((acc, note) => {
+            if (!acc[note.pageNumber]) {
+                acc[note.pageNumber] = [];
+            }
+            acc[note.pageNumber].push(note);
+            return acc;
+        }, {} as Record<number, any[]>);
+        return grouped;
+    }, [notes]);
+
+    const sortedPageNumbers = useMemo(() => {
+        const pages = Object.keys(notesByPage).map(Number);
+        if (!pages.includes(currentPage)) {
+            pages.push(currentPage);
+        }
+        return pages.sort((a, b) => a - b);
+    }, [notesByPage, currentPage]);
+
+    const deleteNote = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            const res = await fetch(`/api/notes/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setNotes(prev => prev.filter(n => n.id !== id));
+            } else {
+                alert("Failed to delete note");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error deleting note");
+        }
+    };
 
     const deleteBookmark = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -150,7 +189,7 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                 {activeTab === 'notes' ? (
                     <>
                         <header style={{ marginBottom: '1rem' }}>
-                            <p style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>Notes for Page {currentPage}</p>
+                            <p style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>All Notes</p>
                         </header>
 
                         {isLoadingNotes ? (
@@ -158,26 +197,87 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                 <Loader2 className="spinning" size={24} />
                             </div>
                         ) : (
-                            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '1rem' }}>
-                                {pageNotes.length === 0 ? (
-                                    <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', marginTop: '2rem', fontSize: '0.875rem' }}>
-                                        No notes for this page yet. Add one below!
-                                    </p>
+                            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem', paddingBottom: '1rem' }}>
+                                {sortedPageNumbers.length === 1 && sortedPageNumbers[0] === currentPage && notes.length === 0 ? (
+                                    <div ref={activeNoteRef}>
+                                        <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', marginTop: '2rem', fontSize: '0.875rem' }}>
+                                            No notes yet. Add one below to start!
+                                        </p>
+                                    </div>
                                 ) : (
-                                    pageNotes.map(note => (
-                                        <div key={note.id} className="card" style={{ padding: '1rem' }}>
-                                            <p style={{ fontSize: '0.875rem', whiteSpace: 'pre-wrap' }}>{note.content}</p>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.5rem', textAlign: 'right' }}>
-                                                {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
+                                    sortedPageNumbers.map(page => {
+                                        const pageNotes = notesByPage[page] || [];
+                                        const isActive = page === currentPage;
+                                        return (
+                                            <div
+                                                key={page}
+                                                ref={isActive ? activeNoteRef : null}
+                                                style={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: '0.5rem',
+                                                    padding: isActive ? '0.75rem' : '0',
+                                                    background: isActive ? 'rgba(var(--primary-rgb), 0.05)' : 'transparent',
+                                                    borderLeft: isActive ? '3px solid var(--primary)' : '3px solid transparent',
+                                                    borderRadius: isActive ? '0 var(--radius) var(--radius) 0' : '0',
+                                                    transition: 'all 0.3s ease'
+                                                }}
+                                            >
+                                                <h3 style={{
+                                                    fontSize: '0.875rem',
+                                                    fontWeight: 600,
+                                                    color: isActive ? 'var(--primary)' : 'var(--muted-foreground)',
+                                                    margin: 0,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.5rem'
+                                                }}>
+                                                    Page {page}
+                                                    {isActive && <span style={{ fontSize: '0.7rem', padding: '2px 6px', background: 'var(--primary)', color: 'var(--primary-foreground)', borderRadius: '999px', fontWeight: 'bold' }}>Current</span>}
+                                                </h3>
 
-                                {notes.length > 0 && pageNotes.length === 0 && (
-                                    <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', marginTop: 'auto', fontSize: '0.75rem', whiteSpace: 'pre-wrap' }}>
-                                        You have {notes.length} note{notes.length === 1 ? '' : 's'} on other pages.
-                                    </p>
+                                                {pageNotes.length === 0 ? (
+                                                    <p style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic', margin: 0 }}>
+                                                        No notes for this page.
+                                                    </p>
+                                                ) : (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                                        {pageNotes.map((note: any) => (
+                                                            <div
+                                                                key={note.id}
+                                                                className="card hoverable"
+                                                                onClick={() => {
+                                                                    if (!isActive) {
+                                                                        router.push(`?page=${page}`);
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    padding: '0.75rem',
+                                                                    border: isActive ? '1px solid rgba(var(--primary-rgb), 0.3)' : '1px solid var(--surface-border)',
+                                                                    cursor: isActive ? 'default' : 'pointer'
+                                                                }}
+                                                            >
+                                                                <p style={{ fontSize: '0.875rem', whiteSpace: 'pre-wrap', margin: 0 }}>{note.content}</p>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                                                                    <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                                                                        {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                    </div>
+                                                                    <button
+                                                                        className="btn btn-secondary"
+                                                                        style={{ padding: '0.4rem', minHeight: 0, height: 'auto', color: 'var(--destructive)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                                        onClick={(e) => deleteNote(note.id, e)}
+                                                                        title="Delete Note"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })
                                 )}
                             </div>
                         )}
@@ -192,7 +292,7 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                 value={newNote}
                                 onChange={(e) => setNewNote(e.target.value)}
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
                                         handleSaveNote();
                                     }
@@ -267,10 +367,11 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                         </button>
                                                         <button
                                                             className="btn btn-secondary"
-                                                            style={{ padding: '0.25rem 0.5rem', minHeight: 0, height: 'auto', fontSize: '0.75rem' }}
+                                                            style={{ padding: '0.4rem', minHeight: 0, height: 'auto', color: 'var(--destructive)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                                             onClick={(e) => deleteBookmark(bookmark.id, e)}
+                                                            title="Delete Bookmark"
                                                         >
-                                                            Delete
+                                                            <Trash2 size={14} />
                                                         </button>
                                                     </div>
                                                 </div>
