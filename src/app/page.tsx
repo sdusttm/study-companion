@@ -31,10 +31,13 @@ export default async function Home() {
           <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Your Library</h1>
           <p style={{ color: 'var(--muted-foreground)' }}>Upload and study your textbooks efficiently.</p>
         </div>
-        <UploadBook env={{
-          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-          supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-        }} />
+        <UploadBook
+          env={{
+            supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+            supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+          }}
+          existingBooks={books.map(b => ({ id: b.id, title: b.title }))}
+        />
       </header>
 
       {books.length === 0 ? (

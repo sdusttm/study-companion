@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 
 import { createClient } from "@supabase/supabase-js";
 
-export function UploadBook({ env }: { env?: { supabaseUrl: string; supabaseAnonKey: string } }) {
+export function UploadBook({ env, existingBooks }: {
+    env?: { supabaseUrl: string; supabaseAnonKey: string },
+    existingBooks?: { id: string, title: string }[]
+}) {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadingFileName, setUploadingFileName] = useState("");
     const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -20,6 +23,17 @@ export function UploadBook({ env }: { env?: { supabaseUrl: string; supabaseAnonK
         if (file.type !== "application/pdf") {
             alert("Please upload a valid PDF file.");
             return;
+        }
+
+        const title = file.name.replace(/\.[^/.]+$/, "");
+        const existingBook = existingBooks?.find(b => b.title === title);
+
+        if (existingBook) {
+            if (window.confirm(`You already have a book named "${existingBook.title}". Do you want to open it instead of uploading a duplicate?`)) {
+                router.push(`/reader/${existingBook.id}`);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+                return;
+            }
         }
 
         const url = env?.supabaseUrl || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -59,7 +73,7 @@ export function UploadBook({ env }: { env?: { supabaseUrl: string; supabaseAnonK
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    title: file.name.replace(/\.[^/.]+$/, ""),
+                    title: title,
                     fileName: uniqueFileName,
                     filePath: publicUrl // We store the public URL directly now!
                 }),
