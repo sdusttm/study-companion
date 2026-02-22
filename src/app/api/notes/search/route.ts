@@ -14,25 +14,37 @@ export async function GET(req: NextRequest) {
 
         const searchParams = req.nextUrl.searchParams;
         const query = searchParams.get("q");
+        const globalSearch = searchParams.get("global") === "true";
 
         if (!query) {
             return NextResponse.json([]);
         }
 
+        const isAdmin = (session.user as any).role === "ADMIN";
+        const isGlobal = isAdmin && globalSearch;
+
+        const whereClause: any = {
+            OR: [
+                { content: { contains: query } },
+                { paragraphContext: { contains: query } },
+                { content: { contains: query, mode: 'insensitive' } }, // Add case-insensitive search if supported by DB
+                { paragraphContext: { contains: query, mode: 'insensitive' } },
+            ],
+        };
+
+        if (!isGlobal) {
+            whereClause.userId = (session.user as any).id;
+        }
+
         const notes = await prisma.note.findMany({
-            where: {
-                userId: (session.user as any).id,
-                OR: [
-                    { content: { contains: query } },
-                    { paragraphContext: { contains: query } },
-                ],
-            },
+            where: whereClause,
             include: {
                 book: {
                     select: {
                         title: true,
                     }
-                }
+                },
+                ...(isGlobal && { user: { select: { email: true } } })
             },
             orderBy: { createdAt: "desc" },
         });
