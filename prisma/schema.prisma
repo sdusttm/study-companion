@@ -36,9 +36,9 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String     @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String?    @unique
   emailVerified DateTime?
   image         String?
   password      String?
@@ -46,6 +46,7 @@ model User {
   sessions      Session[]
   books         Book[]
   notes         Note[]
+  bookmarks     Bookmark[]
 }
 
 model VerificationToken {
@@ -57,14 +58,27 @@ model VerificationToken {
 }
 
 model Book {
-  id         String   @id @default(cuid())
+  id         String     @id @default(cuid())
   title      String
   fileName   String
   filePath   String
-  uploadedAt DateTime @default(now())
+  lastPage   Int        @default(1)
+  uploadedAt DateTime   @default(now())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes      Note[]
+  bookmarks  Bookmark[]
+}
+
+model Bookmark {
+  id         String   @id @default(cuid())
+  bookId     String
+  book       Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  pageNumber Int
+  title      String?
+  createdAt  DateTime @default(now())
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  notes      Note[]
 }
 
 model Note {

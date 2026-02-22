@@ -7,7 +7,7 @@ import { NoteSidebar } from "./NoteSidebar";
 
 export function ClientReaderLayout({ book }: { book: any }) {
     const searchParams = useSearchParams();
-    const initialPage = parseInt(searchParams.get("page") || "1", 10);
+    const initialPage = parseInt(searchParams.get("page") || book.lastPage?.toString() || "1", 10);
     const [currentPage, setCurrentPage] = useState(initialPage);
 
     return (
@@ -15,6 +15,7 @@ export function ClientReaderLayout({ book }: { book: any }) {
             <div style={{ flex: 1, borderRight: '1px solid var(--surface-border)', position: 'relative' }}>
                 <PDFViewer
                     pdfUrl={book.filePath.startsWith("http") ? book.filePath : `/api/books/${book.id}/pdf`}
+                    bookId={book.id}
                     bookTitle={book.title}
                     currentPage={currentPage}
                     onPageChange={setCurrentPage}

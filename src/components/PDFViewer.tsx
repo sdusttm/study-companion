@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, BookmarkPlus } from "lucide-react";
+import { useDebounce } from "@/hooks/useDebounce";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
@@ -11,11 +12,13 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 
 export function PDFViewer({
     pdfUrl,
+    bookId,
     bookTitle,
     currentPage,
     onPageChange
 }: {
     pdfUrl: string;
+    bookId: string;
     bookTitle: string;
     currentPage: number;
     onPageChange: (page: number) => void;
@@ -23,6 +26,19 @@ export function PDFViewer({
     const [numPages, setNumPages] = useState<number | null>(null);
     const [scale, setScale] = useState(1.0);
     const [pageInput, setPageInput] = useState(currentPage.toString());
+    const debouncedPage = useDebounce(currentPage, 1000);
+    const [isBookmarking, setIsBookmarking] = useState(false);
+
+    // Save reading progress to database silently
+    useEffect(() => {
+        if (debouncedPage) {
+            fetch(`/api/books/${bookId}/progress`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lastPage: debouncedPage })
+            }).catch(console.error);
+        }
+    }, [debouncedPage, bookId]);
 
     useEffect(() => {
         setPageInput(currentPage.toString());
@@ -51,6 +67,25 @@ export function PDFViewer({
         setScale(prev => Math.min(Math.max(0.5, prev + offset), 3.0));
     };
 
+    const handleAddBookmark = async () => {
+        setIsBookmarking(true);
+        try {
+            const res = await fetch(`/api/books/${bookId}/bookmarks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pageNumber: currentPage })
+            });
+            if (res.ok) {
+                // You could flash a success message here, but the sidebar will auto-update if we refresh or emit an event
+                // For simplicity, we just let the BookmarkSidebar fetch it.
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsBookmarking(false);
+        }
+    };
+
     return (
         <div className="pdf-viewer" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Controls Bar */}
@@ -64,7 +99,19 @@ export function PDFViewer({
                 top: 0,
                 zIndex: 10
             }}>
-                <h2 style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0 }}>{bookTitle}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <h2 style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0 }}>{bookTitle}</h2>
+                    <button
+                        onClick={handleAddBookmark}
+                        disabled={isBookmarking}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', gap: '0.25rem' }}
+                        title="Bookmark this page"
+                    >
+                        <BookmarkPlus size={14} />
+                        {isBookmarking ? "..." : "Save"}
+                    </button>
+                </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
