@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -22,6 +22,21 @@ export function PDFViewer({
 }) {
     const [numPages, setNumPages] = useState<number | null>(null);
     const [scale, setScale] = useState(1.0);
+    const [pageInput, setPageInput] = useState(currentPage.toString());
+
+    useEffect(() => {
+        setPageInput(currentPage.toString());
+    }, [currentPage]);
+
+    const handlePageSubmit = (e: React.FormEvent | React.FocusEvent) => {
+        e.preventDefault();
+        const pageNumber = parseInt(pageInput, 10);
+        if (!isNaN(pageNumber) && pageNumber >= 1 && (numPages ? pageNumber <= numPages : true)) {
+            onPageChange(pageNumber);
+        } else {
+            setPageInput(currentPage.toString());
+        }
+    };
 
     function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
         setNumPages(numPages);
@@ -56,9 +71,20 @@ export function PDFViewer({
                         <button className="btn btn-secondary" onClick={() => changePage(-1)} disabled={currentPage <= 1} style={{ padding: '0.5rem' }}>
                             <ChevronLeft size={16} />
                         </button>
-                        <span style={{ fontSize: '0.875rem', minWidth: '80px', textAlign: 'center' }}>
-                            Page {currentPage} of {numPages ?? '--'}
-                        </span>
+                        <form onSubmit={handlePageSubmit} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '0.875rem' }}>Page</span>
+                            <input
+                                type="text"
+                                value={pageInput}
+                                onChange={(e) => setPageInput(e.target.value)}
+                                onBlur={handlePageSubmit}
+                                className="input-field"
+                                style={{ width: '50px', padding: '0.25rem', textAlign: 'center', height: '32px' }}
+                            />
+                            <span style={{ fontSize: '0.875rem', minWidth: '40px' }}>
+                                of {numPages ?? '--'}
+                            </span>
+                        </form>
                         <button className="btn btn-secondary" onClick={() => changePage(1)} disabled={currentPage >= (numPages || 1)} style={{ padding: '0.5rem' }}>
                             <ChevronRight size={16} />
                         </button>
