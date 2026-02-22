@@ -46,8 +46,8 @@ export default async function Home() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
           {books.map((book) => (
-            <Link href={`/reader/${book.id}`} key={book.id}>
-              <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%' }}>
+            <div className="card" key={book.id} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', position: 'relative' }}>
+              <Link href={`/reader/${book.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1 }}>
                 <div style={{
                   background: 'rgba(255, 255, 255, 0.05)',
                   backdropFilter: 'blur(4px)',
@@ -66,17 +66,17 @@ export default async function Home() {
                     <h3 style={{ fontSize: '1.125rem', fontWeight: 600, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', flex: 1 }}>
                       {book.title}
                     </h3>
-                    <div style={{ marginTop: '-4px', marginRight: '-4px' }}>
-                      <DeleteBookButton bookId={book.id} bookTitle={book.title} />
-                    </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--muted-foreground)', fontSize: '0.875rem', marginTop: '0.5rem' }}>
                     <Calendar size={14} />
                     {new Date(book.uploadedAt).toLocaleDateString()}
                   </div>
                 </div>
+              </Link>
+              <div style={{ position: 'absolute', bottom: '1.25rem', right: '1.25rem', zIndex: 10 }}>
+                <DeleteBookButton bookId={book.id} bookTitle={book.title} />
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}
