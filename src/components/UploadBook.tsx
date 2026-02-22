@@ -9,7 +9,7 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
-export function UploadBook() {
+export function UploadBook({ env }: { env?: { supabaseUrl: string; supabaseAnonKey: string } }) {
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
@@ -23,11 +23,19 @@ export function UploadBook() {
             return;
         }
 
+        const url = env?.supabaseUrl || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+        const key = env?.supabaseAnonKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+
+        if (!url) {
+            alert("Error: supabaseUrl is required. Please check your production environment variables.");
+            return;
+        }
+
         setIsUploading(true);
 
         try {
             // 1. Upload directly to Supabase Storage
-            const supabase = createClient(supabaseUrl, supabaseAnonKey);
+            const supabase = createClient(url, key);
 
             const uniqueFileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
 
@@ -57,7 +65,8 @@ export function UploadBook() {
             });
 
             if (!res.ok) {
-                throw new Error("Failed to save book record to database");
+                const errorData = await res.json().catch(() => null);
+                throw new Error(errorData?.error || `Server error ${res.status}: Failed to save book record to database`);
             }
 
             const data = await res.json();
