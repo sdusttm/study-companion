@@ -85,11 +85,12 @@ model Bookmark {
 model Note {
   id               String   @id @default(cuid())
   bookId           String
-  book             Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
   pageNumber       Int
   content          String
   paragraphContext String?
   createdAt        DateTime @default(now())
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String   // Foreign key to User
+  
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

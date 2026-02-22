@@ -9,5 +9,5 @@ export default async function SearchPage() {
         redirect("/login");
     }
 
-    return <SearchClient role={(session.user as any).role || "USER"} />;
+    return <SearchClient />;
 }
