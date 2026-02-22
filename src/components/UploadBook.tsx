@@ -42,9 +42,6 @@ export function UploadBook({ env, existingBooks }: {
 
         const title = file.name.replace(/\.[^/.]+$/, "");
 
-        setIsUploading(true);
-        setUploadingFileName(file.name);
-
         let calculatedHash = "";
         try {
             calculatedHash = await calculateFileHash(file);
@@ -62,7 +59,6 @@ export function UploadBook({ env, existingBooks }: {
             }
 
             if (window.confirm(`${message} Do you want to open it instead of uploading a duplicate?`)) {
-                setIsUploading(false);
                 router.push(`/reader/${existingBook.id}`);
                 if (fileInputRef.current) fileInputRef.current.value = "";
                 return;
@@ -71,7 +67,6 @@ export function UploadBook({ env, existingBooks }: {
                 // In a strict dedupe system, we might just block them here. For now, we'll let them proceed.
                 // If you want strict blocking, replace this else block with a return statement.
                 // Actually, since they asked to dedupe, it's safer to cancel the current upload to prevent duplicates.
-                setIsUploading(false);
                 if (fileInputRef.current) fileInputRef.current.value = "";
                 return;
             }
@@ -82,12 +77,12 @@ export function UploadBook({ env, existingBooks }: {
 
         if (!url) {
             alert("Error: supabaseUrl is required. Please check your production environment variables.");
-            setIsUploading(false);
             return;
         }
 
-        setUploadingFileName(file.name);
+        // Only show the upload overlay once we know we are definitely uploading it
         setIsUploading(true);
+        setUploadingFileName(file.name);
         setUploadSuccess(false);
 
         try {
