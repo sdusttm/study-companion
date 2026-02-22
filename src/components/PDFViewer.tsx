@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, BookmarkPlus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, BookmarkPlus } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
@@ -25,6 +26,7 @@ export function PDFViewer({
 }) {
     const [numPages, setNumPages] = useState<number | null>(null);
     const [scale, setScale] = useState(1.0);
+    const router = useRouter();
     const [pageInput, setPageInput] = useState(currentPage.toString());
     const debouncedPage = useDebounce(currentPage, 1000);
     const [isBookmarking, setIsBookmarking] = useState(false);
@@ -78,8 +80,7 @@ export function PDFViewer({
                 body: JSON.stringify({ pageNumber: currentPage })
             });
             if (res.ok) {
-                // You could flash a success message here, but the sidebar will auto-update if we refresh or emit an event
-                // For simplicity, we just let the BookmarkSidebar fetch it.
+                window.dispatchEvent(new CustomEvent('bookmark-added'));
             }
         } catch (error) {
             console.error(error);
@@ -102,6 +103,14 @@ export function PDFViewer({
                 zIndex: 10
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <button
+                        onClick={() => router.push('/')}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.4rem', height: 'auto', borderRadius: '50%' }}
+                        title="Back to Dashboard"
+                    >
+                        <ArrowLeft size={16} />
+                    </button>
                     <h2 style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0 }}>{bookTitle}</h2>
                     <button
                         onClick={handleAddBookmark}

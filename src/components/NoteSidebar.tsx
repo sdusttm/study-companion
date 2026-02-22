@@ -19,6 +19,19 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
 
     const router = useRouter();
 
+    const fetchBookmarks = () => {
+        fetch(`/api/books/${bookId}/bookmarks`)
+            .then(res => res.json())
+            .then(data => {
+                setBookmarks(data.bookmarks || []);
+                setIsLoadingBookmarks(false);
+            })
+            .catch(err => {
+                console.error("Failed to fetch bookmarks:", err);
+                setIsLoadingBookmarks(false);
+            });
+    };
+
     useEffect(() => {
         fetch(`/api/books/${bookId}/notes`)
             .then(res => res.json())
@@ -31,16 +44,14 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                 setIsLoadingNotes(false);
             });
 
-        fetch(`/api/books/${bookId}/bookmarks`)
-            .then(res => res.json())
-            .then(data => {
-                setBookmarks(data.bookmarks || []);
-                setIsLoadingBookmarks(false);
-            })
-            .catch(err => {
-                console.error("Failed to fetch bookmarks:", err);
-                setIsLoadingBookmarks(false);
-            });
+        fetchBookmarks();
+
+        const handleBookmarkUpdated = () => fetchBookmarks();
+        window.addEventListener("bookmark-added", handleBookmarkUpdated);
+
+        return () => {
+            window.removeEventListener("bookmark-added", handleBookmarkUpdated);
+        };
     }, [bookId]);
 
     const handleSaveNote = async () => {
@@ -93,16 +104,16 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Tabs Header */}
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--surface-border)' }}>
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--surface-border)', padding: '0.5rem', gap: '0.5rem', background: 'rgba(0,0,0,0.02)' }}>
                 <button
                     onClick={() => setActiveTab("notes")}
-                    style={{ flex: 1, padding: '1rem', background: activeTab === 'notes' ? 'var(--background)' : 'transparent', borderBottom: activeTab === 'notes' ? '2px solid var(--primary)' : '2px solid transparent', fontWeight: activeTab === 'notes' ? 600 : 400 }}
+                    style={{ flex: 1, padding: '0.5rem', borderRadius: 'var(--radius)', background: activeTab === 'notes' ? 'var(--background)' : 'transparent', border: '1px solid', borderColor: activeTab === 'notes' ? 'var(--surface-border)' : 'transparent', boxShadow: activeTab === 'notes' ? 'var(--shadow-sm)' : 'none', fontWeight: activeTab === 'notes' ? 600 : 400, cursor: 'pointer', outline: 'none', transition: 'all 0.2s', color: 'var(--foreground)' }}
                 >
                     Notes
                 </button>
                 <button
                     onClick={() => setActiveTab("bookmarks")}
-                    style={{ flex: 1, padding: '1rem', background: activeTab === 'bookmarks' ? 'var(--background)' : 'transparent', borderBottom: activeTab === 'bookmarks' ? '2px solid var(--primary)' : '2px solid transparent', fontWeight: activeTab === 'bookmarks' ? 600 : 400 }}
+                    style={{ flex: 1, padding: '0.5rem', borderRadius: 'var(--radius)', background: activeTab === 'bookmarks' ? 'var(--background)' : 'transparent', border: '1px solid', borderColor: activeTab === 'bookmarks' ? 'var(--surface-border)' : 'transparent', boxShadow: activeTab === 'bookmarks' ? 'var(--shadow-sm)' : 'none', fontWeight: activeTab === 'bookmarks' ? 600 : 400, cursor: 'pointer', outline: 'none', transition: 'all 0.2s', color: 'var(--foreground)' }}
                 >
                     Bookmarks
                 </button>

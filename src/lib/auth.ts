@@ -8,6 +8,26 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+    trustHost: true,
+    secret: process.env.AUTH_SECRET || "a-very-secure-secret-key-for-local-development",
+    debug: true,
+    logger: {
+        error(error) {
+            try {
+                const fs = require('fs');
+                let details = error instanceof Error ? (error.stack || error.message) : JSON.stringify(error);
+                if (error?.cause) details += '\\nCause: ' + (error.cause instanceof Error ? error.cause.stack : JSON.stringify(error.cause));
+                fs.appendFileSync('nextauth-error.log', `[ERROR] ${details}\\n`);
+            } catch (e) { }
+            console.error(error);
+        },
+        warn(code, ...message) {
+            console.warn(code, ...message);
+        },
+        debug(code, ...message) {
+            console.log(code, ...message);
+        }
+    },
     adapter: PrismaAdapter(prisma),
     providers: [
         GoogleProvider({
