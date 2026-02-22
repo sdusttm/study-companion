@@ -52,8 +52,8 @@ model User {
   accounts      Account[]
   sessions      Session[]
   books         Book[]
-  notes         Note[]
   bookmarks     Bookmark[]
+  highlights    Highlight[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -77,8 +77,8 @@ model Book {
   uploadedAt DateTime   @default(now())
   userId     String
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  notes      Note[]
   bookmarks  Bookmark[]
+  highlights Highlight[]
 }
 
 model Bookmark {
@@ -92,14 +92,17 @@ model Bookmark {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model Note {
-  id               String   @id @default(cuid())
-  bookId           String
-  pageNumber       Int
-  content          String
-  paragraphContext String?
-  createdAt        DateTime @default(now())
-  userId           String   // Foreign key to User
+
+model Highlight {
+  id         String   @id @default(cuid())
+  bookId     String
+  userId     String
+  content    String
+  color      String   @default("yellow")
+  position   Json
+  comment    String?
+  pageNumber Int
+  createdAt  DateTime @default(now())
   
   book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
