@@ -54,9 +54,11 @@ export function PDFViewer({
         }
     };
 
-    function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
-        setNumPages(numPages);
-        onPageChange(1);
+    function onDocumentLoadSuccess({ numPages: loadedNumPages }: { numPages: number }) {
+        setNumPages(loadedNumPages);
+        if (currentPage > loadedNumPages) {
+            onPageChange(loadedNumPages);
+        }
     }
 
     const changePage = (offset: number) => {
