@@ -33,6 +33,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Save to Database
+    console.log("Attempting to connect book to user ID:", (session.user as any).id);
+
     const book = await prisma.book.create({
       data: {
         title,

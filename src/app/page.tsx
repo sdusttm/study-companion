@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import Link from "next/link";
 import { UploadBook } from "@/components/UploadBook";
+import { DeleteBookButton } from "@/components/DeleteBookButton";
 import { FileText, Calendar } from "lucide-react";
 import { getServerSession } from "@/lib/auth";
 import { authOptions } from "@/lib/auth";
@@ -61,9 +62,14 @@ export default async function Home() {
                   <FileText size={48} />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.125rem', fontWeight: 600, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {book.title}
-                  </h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                    <h3 style={{ fontSize: '1.125rem', fontWeight: 600, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', flex: 1 }}>
+                      {book.title}
+                    </h3>
+                    <div style={{ marginTop: '-4px', marginRight: '-4px' }}>
+                      <DeleteBookButton bookId={book.id} bookTitle={book.title} />
+                    </div>
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--muted-foreground)', fontSize: '0.875rem', marginTop: '0.5rem' }}>
                     <Calendar size={14} />
                     {new Date(book.uploadedAt).toLocaleDateString()}
