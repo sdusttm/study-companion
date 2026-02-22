@@ -16,6 +16,9 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
     // Bookmarks Status
     const [bookmarks, setBookmarks] = useState<any[]>([]);
     const [isLoadingBookmarks, setIsLoadingBookmarks] = useState(true);
+    const [editingBookmarkId, setEditingBookmarkId] = useState<string | null>(null);
+    const [editBookmarkTitle, setEditBookmarkTitle] = useState("");
+    const [isSavingBookmark, setIsSavingBookmark] = useState(false);
 
     const router = useRouter();
 
@@ -101,6 +104,30 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
         }
     };
 
+    const handleRenameBookmark = async (id: string, e: React.FormEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!editBookmarkTitle.trim()) return;
+
+        setIsSavingBookmark(true);
+        try {
+            const res = await fetch(`/api/bookmarks/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: editBookmarkTitle })
+            });
+            if (res.ok) {
+                const updated = await res.json();
+                setBookmarks(prev => prev.map(b => b.id === id ? { ...b, title: updated.bookmark.title } : b));
+                setEditingBookmarkId(null);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsSavingBookmark(false);
+        }
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Tabs Header */}
@@ -115,7 +142,7 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                     onClick={() => setActiveTab("bookmarks")}
                     style={{ flex: 1, padding: '0.5rem', borderRadius: 'var(--radius)', background: activeTab === 'bookmarks' ? 'var(--background)' : 'transparent', border: '1px solid', borderColor: activeTab === 'bookmarks' ? 'var(--surface-border)' : 'transparent', boxShadow: activeTab === 'bookmarks' ? 'var(--shadow-sm)' : 'none', fontWeight: activeTab === 'bookmarks' ? 600 : 400, cursor: 'pointer', outline: 'none', transition: 'all 0.2s', color: 'var(--foreground)' }}
                 >
-                    Bookmarks
+                    Bookmarks {bookmarks.length > 0 && <span style={{ marginLeft: '4px', background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '2px 6px', fontSize: '0.75rem', borderRadius: '999px' }}>{bookmarks.length}</span>}
                 </button>
             </div>
 
@@ -203,20 +230,51 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                         <div
                                             key={bookmark.id}
                                             className="card hoverable"
-                                            style={{ padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', border: currentPage === bookmark.pageNumber ? '1px solid var(--primary)' : undefined }}
+                                            style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'pointer', border: currentPage === bookmark.pageNumber ? '1px solid var(--primary)' : undefined }}
                                             onClick={() => router.push(`?page=${bookmark.pageNumber}`)}
                                         >
-                                            <div>
-                                                <p style={{ fontWeight: 500, margin: 0 }}>{bookmark.title}</p>
-                                                <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', margin: 0 }}>Page {bookmark.pageNumber}</p>
-                                            </div>
-                                            <button
-                                                className="btn btn-secondary"
-                                                style={{ padding: '0.25rem 0.5rem', minHeight: 0, height: 'auto', fontSize: '0.75rem' }}
-                                                onClick={(e) => deleteBookmark(bookmark.id, e)}
-                                            >
-                                                Delete
-                                            </button>
+                                            {editingBookmarkId === bookmark.id ? (
+                                                <form onSubmit={(e) => handleRenameBookmark(bookmark.id, e)} style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                                                    <input
+                                                        autoFocus
+                                                        value={editBookmarkTitle}
+                                                        onChange={e => setEditBookmarkTitle(e.target.value)}
+                                                        onClick={e => e.stopPropagation()}
+                                                        className="input-field"
+                                                        style={{ padding: '0.25rem 0.5rem', flex: 1, minHeight: 0 }}
+                                                        disabled={isSavingBookmark}
+                                                    />
+                                                    <button type="submit" disabled={isSavingBookmark || !editBookmarkTitle.trim()} className="btn btn-primary" style={{ padding: '0.25rem 0.5rem', minHeight: 0, height: 'auto', fontSize: '0.75rem' }} onClick={e => e.stopPropagation()}>Save</button>
+                                                    <button type="button" disabled={isSavingBookmark} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minHeight: 0, height: 'auto', fontSize: '0.75rem' }} onClick={(e) => { e.stopPropagation(); setEditingBookmarkId(null); }}>Cancel</button>
+                                                </form>
+                                            ) : (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <div>
+                                                        <p style={{ fontWeight: 500, margin: 0 }}>{bookmark.title}</p>
+                                                        <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', margin: 0 }}>Page {bookmark.pageNumber}</p>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                        <button
+                                                            className="btn btn-secondary"
+                                                            style={{ padding: '0.25rem 0.5rem', minHeight: 0, height: 'auto', fontSize: '0.75rem' }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setEditingBookmarkId(bookmark.id);
+                                                                setEditBookmarkTitle(bookmark.title);
+                                                            }}
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            className="btn btn-secondary"
+                                                            style={{ padding: '0.25rem 0.5rem', minHeight: 0, height: 'auto', fontSize: '0.75rem' }}
+                                                            onClick={(e) => deleteBookmark(bookmark.id, e)}
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     ))
                                 )}
