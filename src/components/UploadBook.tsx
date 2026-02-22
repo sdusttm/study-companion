@@ -15,6 +15,13 @@ export function UploadBook({ env, existingBooks }: {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadingFileName, setUploadingFileName] = useState("");
     const [uploadSuccess, setUploadSuccess] = useState(false);
+
+    // Duplicate Modal State
+    const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+    const [duplicateMessage, setDuplicateMessage] = useState("");
+    const [duplicateBookId, setDuplicateBookId] = useState("");
+    const [pendingFile, setPendingFile] = useState<File | null>(null);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
 
@@ -37,6 +44,7 @@ export function UploadBook({ env, existingBooks }: {
 
         if (file.type !== "application/pdf") {
             alert("Please upload a valid PDF file.");
+            if (fileInputRef.current) fileInputRef.current.value = "";
             return;
         }
 
@@ -47,7 +55,6 @@ export function UploadBook({ env, existingBooks }: {
             calculatedHash = await calculateFileHash(file);
         } catch (error) {
             console.error("Failed to calculate file hash:", error);
-            // Optionally decide if you want to block upload if hash fails
         }
 
         const existingBook = existingBooks?.find(b => b.fileHash === calculatedHash || b.title === title);
@@ -58,22 +65,49 @@ export function UploadBook({ env, existingBooks }: {
                 message = `This exact PDF has already been uploaded as "${existingBook.title}".`;
             }
 
-            if (window.confirm(`${message} Do you want to open it instead of uploading a duplicate?`)) {
-                router.push(`/reader/${existingBook.id}`);
-                if (fileInputRef.current) fileInputRef.current.value = "";
-                return;
-            } else {
-                // User cancelled the prompt, so they don't want to open it OR they want to upload a dupe anyway.
-                // In a strict dedupe system, we might just block them here. For now, we'll let them proceed.
-                // If you want strict blocking, replace this else block with a return statement.
-                // Actually, since they asked to dedupe, it's safer to cancel the current upload to prevent duplicates.
-                if (fileInputRef.current) fileInputRef.current.value = "";
-                return;
-            }
+            // Show custom modal instead of window.confirm
+            setDuplicateMessage(message);
+            setDuplicateBookId(existingBook.id);
+            setPendingFile(file);
+            setShowDuplicateModal(true);
+            return; // Pause the upload flow here, waiting for modal interaction
         }
 
+        // If no duplicates, proceed directly
+        await executeUpload(file, calculatedHash);
+    };
+
+    const handleOpenExisting = () => {
+        setShowDuplicateModal(false);
+        router.push(`/reader/${duplicateBookId}`);
+        setPendingFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    const handleCancelDuplicate = () => {
+        setShowDuplicateModal(false);
+        setPendingFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    const handleUploadDuplicateAnyway = async () => {
+        setShowDuplicateModal(false);
+        if (!pendingFile) return;
+
+        let calculatedHash = "";
+        try {
+            calculatedHash = await calculateFileHash(pendingFile);
+        } catch (error) {
+            console.error("Failed to calculate file hash:", error);
+        }
+
+        await executeUpload(pendingFile, calculatedHash);
+    };
+
+    const executeUpload = async (file: File, calculatedHash: string) => {
         const url = env?.supabaseUrl || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
         const key = env?.supabaseAnonKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+        const title = file.name.replace(/\.[^/.]+$/, "");
 
         if (!url) {
             alert("Error: supabaseUrl is required. Please check your production environment variables.");
@@ -164,6 +198,32 @@ export function UploadBook({ env, existingBooks }: {
                 style={{ display: "none" }}
                 onChange={handleUpload}
             />
+
+            {/* Custom Duplicate Confirmation Modal */}
+            {showDuplicateModal && (
+                <div className="upload-overlay animate-fade-in" onClick={handleCancelDuplicate}>
+                    <div className="duplicate-modal-content animate-slide-up" onClick={e => e.stopPropagation()}>
+                        <div className="duplicate-header">
+                            <FileText size={24} className="duplicate-icon" />
+                            <h3>Existing Book Found</h3>
+                        </div>
+                        <div className="duplicate-body">
+                            <p>{duplicateMessage}</p>
+                        </div>
+                        <div className="duplicate-footer">
+                            <button className="btn btn-outline" onClick={handleCancelDuplicate}>
+                                Cancel
+                            </button>
+                            <button className="btn btn-secondary" onClick={handleUploadDuplicateAnyway}>
+                                Upload Anyway
+                            </button>
+                            <button className="btn btn-primary" onClick={handleOpenExisting}>
+                                Open Existing Book
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {isUploading && (
                 <div className="upload-overlay animate-fade-in">
@@ -349,6 +409,60 @@ export function UploadBook({ env, existingBooks }: {
                     font-weight: 500;
                     margin: 0;
                     animation: pulse-opacity 1.5s infinite;
+                }
+
+                .duplicate-modal-content {
+                    background: var(--background);
+                    border: 1px solid var(--border);
+                    border-radius: 1.5rem;
+                    width: 100%;
+                    max-width: 480px;
+                    padding: 2.5rem 2rem;
+                    display: flex;
+                    flex-direction: column;
+                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px rgba(var(--primary-rgb), 0.1);
+                    position: relative;
+                    overflow: hidden;
+                }
+                
+                .duplicate-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                    margin-bottom: 1.5rem;
+                    color: var(--foreground);
+                }
+                
+                .duplicate-header h3 {
+                    margin: 0;
+                    font-size: 1.5rem;
+                    font-weight: 700;
+                }
+                
+                .duplicate-icon {
+                    color: var(--primary);
+                }
+                
+                .duplicate-body {
+                    color: var(--muted-foreground);
+                    font-size: 1rem;
+                    line-height: 1.6;
+                    margin-bottom: 2.5rem;
+                }
+                
+                .duplicate-footer {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.75rem;
+                    margin-top: auto;
+                }
+                
+                @media (min-width: 640px) {
+                    .duplicate-footer {
+                        flex-direction: row;
+                        justify-content: flex-end;
+                        gap: 1rem;
+                    }
                 }
 
                 @keyframes pulse {
