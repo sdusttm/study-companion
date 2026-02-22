@@ -53,12 +53,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         async jwt({ token, user }) {
             if (user) {
                 token.id = user.id;
+
+                // Fetch fresh role from DB or auto-promote if in ADMIN_EMAILS
+                const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+                let role = dbUser?.role || "USER";
+
+                const adminEmails = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',').map(e => e.trim().toLowerCase()) : [];
+                if (user.email && adminEmails.includes(user.email.toLowerCase()) && role !== "ADMIN") {
+                    await prisma.user.update({
+                        where: { id: user.id },
+                        data: { role: "ADMIN" }
+                    });
+                    role = "ADMIN";
+                }
+
+                token.role = role;
             }
             return token;
         },
         async session({ session, token }) {
             if (session.user) {
                 (session.user as any).id = token.id;
+                (session.user as any).role = token.role;
             }
             return session;
         }

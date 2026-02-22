@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
-import { BookOpen, Search } from "lucide-react";
+import { BookOpen, Search, ShieldAlert } from "lucide-react";
 import { getServerSession } from "@/lib/auth";
 import { authOptions } from "@/lib/auth";
 import { UserNav } from "@/components/UserNav";
@@ -31,10 +31,18 @@ export default async function RootLayout({
           </Link>
           <div className="nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             {session?.user && (
-              <Link href="/search" className="btn btn-outline" style={{ borderRadius: '999px', padding: '0.4rem 1rem' }}>
-                <Search size={16} />
-                <span>Search Notes</span>
-              </Link>
+              <>
+                {(session.user as any).role === "ADMIN" && (
+                  <Link href="/admin" className="btn btn-outline" style={{ borderRadius: '999px', padding: '0.4rem 1rem', borderColor: 'var(--primary)', color: 'var(--primary)' }}>
+                    <ShieldAlert size={16} />
+                    <span>Admin</span>
+                  </Link>
+                )}
+                <Link href="/search" className="btn btn-outline" style={{ borderRadius: '999px', padding: '0.4rem 1rem' }}>
+                  <Search size={16} />
+                  <span>Search Notes</span>
+                </Link>
+              </>
             )}
             <UserNav user={session?.user} />
           </div>
@@ -43,6 +51,6 @@ export default async function RootLayout({
           {children}
         </main>
       </body>
-    </html>
+    </html >
   );
 }
