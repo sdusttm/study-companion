@@ -72,6 +72,7 @@ model Book {
   title      String
   fileName   String
   filePath   String
+  fileHash   String?    // SHA-256 hash of the PDF for deduplication
   lastPage   Int        @default(1)
   uploadedAt DateTime   @default(now())
   userId     String

@@ -6,15 +6,30 @@ import { useRouter } from "next/navigation";
 
 import { createClient } from "@supabase/supabase-js";
 
+import { sha256 } from "js-sha256";
+
 export function UploadBook({ env, existingBooks }: {
     env?: { supabaseUrl: string; supabaseAnonKey: string },
-    existingBooks?: { id: string, title: string }[]
+    existingBooks?: { id: string, title: string, fileHash: string | null }[]
 }) {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadingFileName, setUploadingFileName] = useState("");
     const [uploadSuccess, setUploadSuccess] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
+
+    const calculateFileHash = async (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const buffer = e.target?.result as ArrayBuffer;
+                const hash = sha256(buffer);
+                resolve(hash);
+            };
+            reader.onerror = (e) => reject(e);
+            reader.readAsArrayBuffer(file);
+        });
+    };
 
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -26,11 +41,37 @@ export function UploadBook({ env, existingBooks }: {
         }
 
         const title = file.name.replace(/\.[^/.]+$/, "");
-        const existingBook = existingBooks?.find(b => b.title === title);
+
+        setIsUploading(true);
+        setUploadingFileName(file.name);
+
+        let calculatedHash = "";
+        try {
+            calculatedHash = await calculateFileHash(file);
+        } catch (error) {
+            console.error("Failed to calculate file hash:", error);
+            // Optionally decide if you want to block upload if hash fails
+        }
+
+        const existingBook = existingBooks?.find(b => b.fileHash === calculatedHash || b.title === title);
 
         if (existingBook) {
-            if (window.confirm(`You already have a book named "${existingBook.title}". Do you want to open it instead of uploading a duplicate?`)) {
+            let message = `You already have a book named "${existingBook.title}".`;
+            if (existingBook.fileHash === calculatedHash) {
+                message = `This exact PDF has already been uploaded as "${existingBook.title}".`;
+            }
+
+            if (window.confirm(`${message} Do you want to open it instead of uploading a duplicate?`)) {
+                setIsUploading(false);
                 router.push(`/reader/${existingBook.id}`);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+                return;
+            } else {
+                // User cancelled the prompt, so they don't want to open it OR they want to upload a dupe anyway.
+                // In a strict dedupe system, we might just block them here. For now, we'll let them proceed.
+                // If you want strict blocking, replace this else block with a return statement.
+                // Actually, since they asked to dedupe, it's safer to cancel the current upload to prevent duplicates.
+                setIsUploading(false);
                 if (fileInputRef.current) fileInputRef.current.value = "";
                 return;
             }
@@ -41,6 +82,7 @@ export function UploadBook({ env, existingBooks }: {
 
         if (!url) {
             alert("Error: supabaseUrl is required. Please check your production environment variables.");
+            setIsUploading(false);
             return;
         }
 
@@ -75,7 +117,8 @@ export function UploadBook({ env, existingBooks }: {
                 body: JSON.stringify({
                     title: title,
                     fileName: uniqueFileName,
-                    filePath: publicUrl // We store the public URL directly now!
+                    filePath: publicUrl, // We store the public URL directly now!
+                    fileHash: calculatedHash
                 }),
             });
 

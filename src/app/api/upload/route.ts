@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { title, fileName, filePath } = await req.json();
+    const { title, fileName, filePath, fileHash } = await req.json();
 
     if (!title || !fileName || !filePath) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
         title,
         fileName,
         filePath,
+        fileHash,
         user: {
           connect: {
             id: (session.user as any).id

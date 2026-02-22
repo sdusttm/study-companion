@@ -36,7 +36,7 @@ export default async function Home() {
             supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
             supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
           }}
-          existingBooks={books.map(b => ({ id: b.id, title: b.title }))}
+          existingBooks={books.map(b => ({ id: b.id, title: b.title, fileHash: b.fileHash }))}
         />
       </header>
 
