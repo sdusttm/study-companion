@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Trash2, Loader2, AlertTriangle, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export function DeleteBookButton({ bookId, bookTitle }: { bookId: string, bookTitle: string }) {
     const [isDeleting, setIsDeleting] = useState(false);
     const [showModal, setShowModal] = useState(false);
+    const [mounted, setMounted] = useState(false);
     const router = useRouter();
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const handleInitialClick = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -58,7 +64,7 @@ export function DeleteBookButton({ bookId, bookTitle }: { bookId: string, bookTi
                 {isDeleting ? <Loader2 size={16} className="spinning" /> : <Trash2 size={16} />}
             </button>
 
-            {showModal && (
+            {mounted && showModal && createPortal(
                 <div className="modal-backdrop" onClick={handleCancel}>
                     <div className="modal-content animate-in" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
@@ -100,7 +106,8 @@ export function DeleteBookButton({ bookId, bookTitle }: { bookId: string, bookTi
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             <style jsx>{`
