@@ -40,7 +40,7 @@ export default async function RootLayout({
                 )}
                 <Link href="/search" className="btn btn-outline" style={{ borderRadius: '999px', padding: '0.4rem 1rem' }}>
                   <Search size={16} />
-                  <span>Search Notes</span>
+                  <span>Search</span>
                 </Link>
               </>
             )}
