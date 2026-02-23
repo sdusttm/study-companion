@@ -6,14 +6,7 @@ import { redirect } from "next/navigation";
 import { LibraryGrid, LibraryItem } from "@/components/LibraryGrid";
 import { CreateFolderButton } from "@/components/CreateFolderButton";
 import { revalidatePath } from "next/cache";
-import { useEffect } from "react";
-
-function ActivityTracker() {
-  useEffect(() => {
-    fetch('/api/activity', { method: 'POST', body: JSON.stringify({ action: 'LOGIN' }) }).catch(() => { });
-  }, []);
-  return null;
-}
+import { ActivityTracker } from "@/components/ActivityTracker";
 
 export const dynamic = 'force-dynamic';
 
