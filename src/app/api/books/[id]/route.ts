@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { getServerSession } from "@/lib/auth";
 import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 const prisma = new PrismaClient();
 
@@ -56,6 +57,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         await prisma.book.delete({
             where: { id: book.id }
         });
+
+        logActivity(req, 'DELETE_BOOK', book.title);
 
         // Optionally, one could delete from Supabase storage here using the Supabase API
         // For now, deleting the DB record correctly removes it from the user's library

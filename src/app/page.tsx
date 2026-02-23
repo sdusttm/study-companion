@@ -6,6 +6,14 @@ import { redirect } from "next/navigation";
 import { LibraryGrid, LibraryItem } from "@/components/LibraryGrid";
 import { CreateFolderButton } from "@/components/CreateFolderButton";
 import { revalidatePath } from "next/cache";
+import { useEffect } from "react";
+
+function ActivityTracker() {
+  useEffect(() => {
+    fetch('/api/activity', { method: 'POST', body: JSON.stringify({ action: 'LOGIN' }) }).catch(() => { });
+  }, []);
+  return null;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +64,7 @@ export default async function Home() {
 
   return (
     <div className="container animate-fade-in" style={{ padding: '2rem' }}>
+      <ActivityTracker />
       <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Your Library</h1>

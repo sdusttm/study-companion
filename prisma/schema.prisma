@@ -55,6 +55,7 @@ model User {
   folders       Folder[]
   bookmarks     Bookmark[]
   highlights    Highlight[]
+  activityLogs  ActivityLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -121,4 +122,19 @@ model Highlight {
   
   book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  details   String?
+  ipAddress String?
+  userAgent String?
+  location  String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }

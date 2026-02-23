@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import { getServerSession } from "@/lib/auth";
 import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 const prisma = new PrismaClient();
 
@@ -24,6 +25,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         if (!book || !book.filePath) {
             return NextResponse.json({ error: "Book not found" }, { status: 404 });
         }
+
+        // Asynchronously log the book open event without blocking the PDF stream
+        logActivity(req, 'OPEN_BOOK', book.title);
 
         const isUrl = book.filePath.startsWith("http://") || book.filePath.startsWith("https://");
 

@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { Loader2, Users, BookOpen, FileText, Bookmark, Activity, Search } from "lucide-react";
+import { AdminActivityLog } from "@/components/AdminActivityLog";
 
 export function AdminDashboardClient() {
-    const [activeTab, setActiveTab] = useState<"overview" | "notes">("overview");
+    const [activeTab, setActiveTab] = useState<"overview" | "notes" | "activity">("overview");
 
     // Overview State
     const [overviewData, setOverviewData] = useState<any>(null);
@@ -88,6 +89,13 @@ export function AdminDashboardClient() {
                     style={{ borderRadius: '999px', padding: '0.5rem 1.5rem' }}
                 >
                     All Highlights & Notes Explorer
+                </button>
+                <button
+                    onClick={() => setActiveTab("activity")}
+                    className={activeTab === "activity" ? "btn btn-primary" : "btn btn-outline"}
+                    style={{ borderRadius: '999px', padding: '0.5rem 1.5rem' }}
+                >
+                    Activity Logs
                 </button>
             </div>
 
@@ -250,6 +258,11 @@ export function AdminDashboardClient() {
                         </div>
                     )}
                 </div>
+            )}
+
+            {/* Activity Logs Tab Content */}
+            {activeTab === "activity" && (
+                <AdminActivityLog />
             )}
         </div>
     );

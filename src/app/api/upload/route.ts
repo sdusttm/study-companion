@@ -5,6 +5,7 @@ import { join } from "path";
 import { existsSync } from "fs";
 import { getServerSession } from "@/lib/auth";
 import { authOptions } from "@/lib/auth";
+import { logActivity } from "@/lib/activity";
 
 export const maxDuration = 60; // Allow upload to take up to 60 seconds on Vercel
 
@@ -53,6 +54,8 @@ export async function POST(req: NextRequest) {
     const book = await prisma.book.create({
       data: bookData,
     });
+
+    logActivity(req, 'ADD_BOOK', book.title);
 
     return NextResponse.json({ success: true, book });
   } catch (error: any) {
