@@ -33,7 +33,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "calc(100vh - 4rem)" }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "calc(100vh - 4.5rem)" }}>
             <div className="glass" style={{ width: "100%", maxWidth: "400px", padding: "2rem", borderRadius: "var(--radius-lg)" }}>
                 <h1 style={{ fontSize: "1.5rem", fontWeight: 600, marginBottom: "1.5rem", textAlign: "center" }}>Welcome Back</h1>
 
