@@ -10,12 +10,7 @@ export const maxDuration = 60; // Allow upload to take up to 60 seconds on Verce
 
 export const dynamic = 'force-dynamic';
 
-export const config = {
-  api: {
-    bodyParser: false,
-    responseLimit: false,
-  },
-};
+
 
 const prisma = new PrismaClient();
 
@@ -26,7 +21,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { title, fileName, filePath, fileHash } = await req.json();
+    const { title, fileName, filePath, fileHash, folderId } = await req.json();
 
     if (!title || !fileName || !filePath) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -35,18 +30,28 @@ export async function POST(req: NextRequest) {
     // Save to Database
     console.log("Attempting to connect book to user ID:", (session.user as any).id);
 
-    const book = await prisma.book.create({
-      data: {
-        title,
-        fileName,
-        filePath,
-        fileHash,
-        user: {
-          connect: {
-            id: (session.user as any).id
-          }
+    const bookData: any = {
+      title,
+      fileName,
+      filePath,
+      fileHash,
+      user: {
+        connect: {
+          id: (session.user as any).id
         }
-      },
+      }
+    };
+
+    if (folderId) {
+      bookData.folder = {
+        connect: {
+          id: folderId
+        }
+      };
+    }
+
+    const book = await prisma.book.create({
+      data: bookData,
     });
 
     return NextResponse.json({ success: true, book });
