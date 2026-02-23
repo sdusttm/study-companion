@@ -8,9 +8,10 @@ import { createClient } from "@supabase/supabase-js";
 
 import { sha256 } from "js-sha256";
 
-export function UploadBook({ env, existingBooks }: {
+export function UploadBook({ env, existingBooks, folderId }: {
     env?: { supabaseUrl: string; supabaseAnonKey: string },
-    existingBooks?: { id: string, title: string, fileHash: string | null }[]
+    existingBooks?: { id: string, title: string, fileHash: string | null }[],
+    folderId?: string
 }) {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadingFileName, setUploadingFileName] = useState("");
@@ -147,7 +148,8 @@ export function UploadBook({ env, existingBooks }: {
                     title: title,
                     fileName: uniqueFileName,
                     filePath: publicUrl, // We store the public URL directly now!
-                    fileHash: calculatedHash
+                    fileHash: calculatedHash,
+                    folderId: folderId || null
                 }),
             });
 

@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
         const whereClause: any = query ? {
             OR: [
                 { content: { contains: query, mode: 'insensitive' } },
-                { paragraphContext: { contains: query, mode: 'insensitive' } },
+                { comment: { contains: query, mode: 'insensitive' } },
             ]
         } : {};
 

@@ -24,7 +24,7 @@ describe('/api/books GET Route', () => {
         (getServerSession as jest.Mock).mockResolvedValueOnce(null);
 
         const request = new NextRequest('http://localhost:3000/api/books');
-        const response = await GET(request);
+        const response = await GET();
 
         expect(response.status).toBe(401);
     });
@@ -42,7 +42,7 @@ describe('/api/books GET Route', () => {
         prismaMock.book.findMany.mockResolvedValueOnce(mockBooks as any);
 
         const request = new NextRequest('http://localhost:3000/api/books');
-        const response = await GET(request);
+        const response = await GET();
         const json = await response.json();
 
         expect(response.status).toBe(200);

@@ -415,13 +415,13 @@ export function PDFViewer({
                     <div style={{ width: '1px', height: '20px', background: 'var(--surface-border)' }} />
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <button className="btn btn-secondary" onClick={() => changeScale(-0.2)} disabled={typeof scale === 'number' && scale <= 0.5} style={{ padding: '0.5rem' }}>
+                        <button className="btn btn-secondary" onClick={() => changeScale(-0.2)} disabled={typeof scale === 'number' && scale <= 0.5} style={{ padding: '0.5rem' }} title="Zoom Out">
                             <ZoomOut size={16} />
                         </button>
                         <span style={{ fontSize: '0.875rem', minWidth: '50px', textAlign: 'center' }}>
                             {typeof scale === 'number' ? `${Math.round(scale * 100)}%` : 'Fit'}
                         </span>
-                        <button className="btn btn-secondary" onClick={() => changeScale(0.2)} disabled={typeof scale === 'number' && scale >= 3.0} style={{ padding: '0.5rem' }}>
+                        <button className="btn btn-secondary" onClick={() => changeScale(0.2)} disabled={typeof scale === 'number' && scale >= 3.0} style={{ padding: '0.5rem' }} title="Zoom In">
                             <ZoomIn size={16} />
                         </button>
                         <button className="btn btn-secondary" onClick={() => setScale(SpecialZoomLevel.PageWidth)} disabled={scale === SpecialZoomLevel.PageWidth} title="Fit to Width" style={{ padding: '0.5rem' }}>

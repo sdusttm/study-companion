@@ -44,7 +44,7 @@ describe('/api/admin/metrics GET Route', () => {
         // Mock Prisma count aggregations
         prismaMock.user.count.mockResolvedValueOnce(10)
         prismaMock.book.count.mockResolvedValueOnce(5)
-        prismaMock.note.count.mockResolvedValueOnce(20)
+        prismaMock.highlight.count.mockResolvedValueOnce(20)
         prismaMock.bookmark.count.mockResolvedValueOnce(15)
         prismaMock.session.count.mockResolvedValueOnce(2)
 

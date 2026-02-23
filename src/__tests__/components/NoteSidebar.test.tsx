@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { NoteSidebar } from '@/components/NoteSidebar'
 import '@testing-library/jest-dom'
 
@@ -31,16 +31,16 @@ describe('NoteSidebar Component', () => {
             return { ok: true, json: async () => [] } // Notes
         })
 
-        render(<NoteSidebar bookId="123" currentPage={1} />)
-
-
-
-        await waitFor(() => {
-            expect(screen.getByText(/No notes yet\. Add one below to start!/i)).toBeInTheDocument()
+        await act(async () => {
+            render(<NoteSidebar bookId="123" currentPage={1} />)
         })
 
-        expect(global.fetch).toHaveBeenCalledWith('/api/books/123/notes')
-        expect(global.fetch).toHaveBeenCalledWith('/api/books/123/bookmarks')
+        await waitFor(() => {
+            expect(screen.getByText(/No notes yet\. Select text in the PDF to create one!/i)).toBeInTheDocument()
+        })
+
+        expect(global.fetch).toHaveBeenCalledWith('/api/books/123/highlights', expect.objectContaining({ cache: 'no-store' }))
+        expect(global.fetch).toHaveBeenCalledWith('/api/books/123/bookmarks', expect.objectContaining({ cache: 'no-store' }))
     })
 
     it('fetches and displays existing notes', async () => {
@@ -50,53 +50,64 @@ describe('NoteSidebar Component', () => {
             }
             return {
                 ok: true, json: async () => [
-                    { id: '1', content: 'Test note content', createdAt: new Date().toISOString(), pageNumber: 1 }
+                    { id: '1', content: 'Test highlight content', comment: 'test comment', createdAt: new Date().toISOString(), pageNumber: 1, position: {} }
                 ]
             }
         })
 
-        render(<NoteSidebar bookId="123" currentPage={1} />)
+        await act(async () => {
+            render(<NoteSidebar bookId="123" currentPage={1} />)
+        })
 
         await waitFor(() => {
-            expect(screen.getByText('Test note content')).toBeInTheDocument()
+            expect(screen.getByText(/Test highlight content/i)).toBeInTheDocument()
         })
     })
 
-    it('allows adding a new note', async () => {
-        // Initial fetches (empty)
+    it('allows adding a comment to a highlight', async () => {
+        // Initial fetches
         ; (global.fetch as jest.Mock).mockImplementation(async (url, options) => {
-            if (options?.method === 'POST') {
-                return { ok: true, json: async () => ({ id: '2', content: 'My new note', createdAt: new Date().toISOString() }) }
+            if (options?.method === 'PATCH') {
+                return { ok: true, json: async () => ({ id: '1', comment: 'My new comment' }) }
             }
             if (url.includes('/bookmarks')) {
                 return { ok: true, json: async () => ({ bookmarks: [] }) }
             }
-            return { ok: true, json: async () => [] } // GET Notes
+            return {
+                ok: true, json: async () => [
+                    { id: '1', content: 'Test highlight', comment: 'existing comment', createdAt: new Date().toISOString(), pageNumber: 1, position: {} }
+                ]
+            } // GET Highlights
         })
 
-        render(<NoteSidebar bookId="123" currentPage={1} />)
+        await act(async () => {
+            render(<NoteSidebar bookId="123" currentPage={1} />)
+        })
 
         await waitFor(() => {
-            expect(screen.getByText(/No notes yet\. Add one below to start!/i)).toBeInTheDocument()
+            expect(screen.getByText(/Test highlight/i)).toBeInTheDocument()
         })
 
-        const textarea = screen.getByPlaceholderText(/Add a note for Page 1/i)
-        fireEvent.change(textarea, { target: { value: 'My new note' } })
+        const editButton = screen.getByRole('button', { name: /Edit/i })
+        fireEvent.click(editButton)
 
-        const button = screen.getByRole('button', { name: /Save Note/i })
+        const textarea = screen.getByPlaceholderText(/Add your note\.\.\./i)
+        fireEvent.change(textarea, { target: { value: 'My new comment' } })
+
+        const button = screen.getByRole('button', { name: /Save/i })
         fireEvent.click(button)
 
-        // Assert that the fetch POST was called
+        // Assert that the fetch PATCH was called
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalledWith('/api/notes', expect.objectContaining({
-                method: 'POST',
-                body: expect.stringContaining('My new note')
+            expect(global.fetch).toHaveBeenCalledWith('/api/highlights/1', expect.objectContaining({
+                method: 'PATCH',
+                body: expect.stringContaining('My new comment')
             }))
         })
 
-        // Assert that the new note appears in the UI
+        // Assert that the new comment appears in the UI
         await waitFor(() => {
-            expect(screen.getByText('My new note')).toBeInTheDocument()
+            expect(screen.getByText('My new comment')).toBeInTheDocument()
         })
     })
 })

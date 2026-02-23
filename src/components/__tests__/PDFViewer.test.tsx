@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { PDFViewer } from '../PDFViewer';
 import { useRouter } from 'next/navigation';
@@ -59,64 +59,69 @@ describe('PDFViewer component', () => {
     });
 
     it('renders the core viewer with standard props', async () => {
-        render(
-            <PDFViewer
-                pdfUrl="http://fakeurl.com/doc.pdf"
-                bookId="123"
-                bookTitle="Test Document"
-                currentPage={1}
-                onPageChange={jest.fn()}
-            />
-        );
+        await act(async () => {
+            render(
+                <PDFViewer
+                    pdfUrl="http://fakeurl.com/doc.pdf"
+                    bookId="123"
+                    bookTitle="Test Document"
+                    currentPage={1}
+                    onPageChange={jest.fn()}
+                />
+            );
+        });
 
         expect(screen.getByTestId('pdf-worker')).toBeInTheDocument();
         expect(screen.getByTestId('pdf-viewer')).toHaveAttribute('data-url', 'http://fakeurl.com/doc.pdf');
         expect(screen.getByTestId('pdf-viewer')).toHaveAttribute('data-page', '0'); // Document lines pages are 0-indexed
     });
 
-    it('shows navigation header with book title', () => {
-        render(
-            <PDFViewer
-                pdfUrl="http://fakeurl.com/doc.pdf"
-                bookId="123"
-                bookTitle="Test Document"
-                currentPage={1}
-                onPageChange={jest.fn()}
-            />
-        );
+    it('shows navigation header with book title', async () => {
+        await act(async () => {
+            render(
+                <PDFViewer
+                    pdfUrl="http://fakeurl.com/doc.pdf"
+                    bookId="123"
+                    bookTitle="Test Document"
+                    currentPage={1}
+                    onPageChange={jest.fn()}
+                />
+            );
+        });
 
         expect(screen.getByText('Test Document')).toBeInTheDocument();
     });
 
     it('navigates back when back button is clicked', async () => {
-        const mockBack = jest.fn();
-        (useRouter as jest.Mock).mockReturnValue({ back: mockBack });
-
-        render(
-            <PDFViewer
-                pdfUrl="http://fakeurl.com/doc.pdf"
-                bookId="123"
-                bookTitle="Test Document"
-                currentPage={1}
-                onPageChange={jest.fn()}
-            />
-        );
+        await act(async () => {
+            render(
+                <PDFViewer
+                    pdfUrl="http://fakeurl.com/doc.pdf"
+                    bookId="123"
+                    bookTitle="Test Document"
+                    currentPage={1}
+                    onPageChange={jest.fn()}
+                />
+            );
+        });
 
         const backBtn = screen.getByTitle("Back to Dashboard");
         fireEvent.click(backBtn);
-        expect(mockBack).toHaveBeenCalled();
+        expect(mockRouterPush).toHaveBeenCalledWith('/');
     });
 
     it('fetches highlights on load', async () => {
-        render(
-            <PDFViewer
-                pdfUrl="http://fakeurl.com/doc.pdf"
-                bookId="123"
-                bookTitle="Test Document"
-                currentPage={1}
-                onPageChange={jest.fn()}
-            />
-        );
+        await act(async () => {
+            render(
+                <PDFViewer
+                    pdfUrl="http://fakeurl.com/doc.pdf"
+                    bookId="123"
+                    bookTitle="Test Document"
+                    currentPage={1}
+                    onPageChange={jest.fn()}
+                />
+            );
+        });
 
         await waitFor(() => {
             expect(global.fetch).toHaveBeenCalledWith('/api/books/123/highlights');
@@ -124,15 +129,17 @@ describe('PDFViewer component', () => {
     });
 
     it('toggles scale state using zoom buttons', async () => {
-        render(
-            <PDFViewer
-                pdfUrl="http://fakeurl.com/doc.pdf"
-                bookId="123"
-                bookTitle="Test Document"
-                currentPage={1}
-                onPageChange={jest.fn()}
-            />
-        );
+        await act(async () => {
+            render(
+                <PDFViewer
+                    pdfUrl="http://fakeurl.com/doc.pdf"
+                    bookId="123"
+                    bookTitle="Test Document"
+                    currentPage={1}
+                    onPageChange={jest.fn()}
+                />
+            );
+        });
 
         const zoomInBtn = await screen.findByTitle(/Zoom In/i);
         const zoomOutBtn = await screen.findByTitle(/Zoom Out/i);
@@ -147,15 +154,17 @@ describe('PDFViewer component', () => {
     });
 
     it('saves bookmark', async () => {
-        render(
-            <PDFViewer
-                pdfUrl="http://fakeurl.com/doc.pdf"
-                bookId="123"
-                bookTitle="Test Document"
-                currentPage={5}
-                onPageChange={jest.fn()}
-            />
-        );
+        await act(async () => {
+            render(
+                <PDFViewer
+                    pdfUrl="http://fakeurl.com/doc.pdf"
+                    bookId="123"
+                    bookTitle="Test Document"
+                    currentPage={5}
+                    onPageChange={jest.fn()}
+                />
+            );
+        });
 
         const saveBookmarkBtn = screen.getByTitle("Bookmark this page");
 
@@ -165,7 +174,7 @@ describe('PDFViewer component', () => {
         await waitFor(() => {
             expect(global.fetch).toHaveBeenCalledWith('/api/books/123/bookmarks', expect.objectContaining({
                 method: 'POST',
-                body: JSON.stringify({ pageNumber: 5, title: 'Page 5' })
+                body: JSON.stringify({ pageNumber: 5 })
             }));
         });
     });
