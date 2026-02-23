@@ -42,7 +42,7 @@ export function AdminDashboardClient() {
         const params = new URLSearchParams();
         if (searchQuery) params.append("q", searchQuery);
 
-        fetch(`/api/admin/notes?${params.toString()}`)
+        fetch(`/api/admin/highlights?${params.toString()}`)
             .then(res => res.json())
             .then(json => {
                 setNotesData(Array.isArray(json) ? json : []);
@@ -87,7 +87,7 @@ export function AdminDashboardClient() {
                     className={activeTab === "notes" ? "btn btn-primary" : "btn btn-outline"}
                     style={{ borderRadius: '999px', padding: '0.5rem 1.5rem' }}
                 >
-                    All Notes Explorer
+                    All Highlights & Notes Explorer
                 </button>
             </div>
 
@@ -102,7 +102,7 @@ export function AdminDashboardClient() {
                     }}>
                         <MetricCard icon={<Users />} title="Total Users" value={overviewData.metrics.totalUsers} />
                         <MetricCard icon={<BookOpen />} title="Books Uploaded" value={overviewData.metrics.totalBooks} />
-                        <MetricCard icon={<FileText />} title="Notes Taken" value={overviewData.metrics.totalNotes} />
+                        <MetricCard icon={<FileText />} title="Highlights & Notes" value={overviewData.metrics.totalNotes} />
                         <MetricCard icon={<Bookmark />} title="Bookmarks" value={overviewData.metrics.totalBookmarks} />
                         <MetricCard icon={<Activity />} title="Auth Sessions" value={overviewData.metrics.totalSessions} />
                     </div>
@@ -187,7 +187,7 @@ export function AdminDashboardClient() {
                         <input
                             className="input glass"
                             type="text"
-                            placeholder="Global Search through ALL users' notes..."
+                            placeholder="Global Search through ALL users' highlights and notes..."
                             style={{ paddingLeft: '3rem', fontSize: '1.1rem', padding: '0.8rem 1rem 0.8rem 3rem', borderRadius: '999px', boxShadow: 'var(--shadow-md)', width: '100%' }}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -205,7 +205,7 @@ export function AdminDashboardClient() {
                     ) : notesData.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--muted-foreground)' }}>
                             <FileText size={48} style={{ margin: '0 auto', opacity: 0.5, marginBottom: '1rem' }} />
-                            <p>No notes found matching your search.</p>
+                            <p>No highlights matching your search.</p>
                         </div>
                     ) : (
                         <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
@@ -231,10 +231,19 @@ export function AdminDashboardClient() {
                                             {note.book?.title || 'Unknown Book'}
                                         </span>
                                     </div>
-                                    <div style={{ background: 'var(--surface-bg)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--surface-border)' }}>
-                                        <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.5 }}>
-                                            {note.content}
-                                        </p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        <div style={{ background: 'var(--surface-bg)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--surface-border)' }}>
+                                            <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.5, color: 'var(--muted-foreground)', fontStyle: 'italic', borderLeft: '3px solid var(--primary)', paddingLeft: '0.8rem' }}>
+                                                "{note.content}"
+                                            </p>
+                                        </div>
+                                        {note.comment && (
+                                            <div style={{ padding: '0.5rem 1rem' }}>
+                                                <p style={{ margin: 0, fontSize: '0.95rem', fontWeight: 500, lineHeight: 1.5 }}>
+                                                    {note.comment}
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}

@@ -19,7 +19,7 @@ describe('SearchClient Components', () => {
 
     it('renders the search input', () => {
         render(<SearchClient />)
-        const input = screen.getByPlaceholderText(/Search through all your notes/i)
+        const input = screen.getByPlaceholderText(/Search through all your highlights and notes/i)
         expect(input).toBeInTheDocument()
     })
 
@@ -38,7 +38,7 @@ describe('SearchClient Components', () => {
             })
 
         render(<SearchClient />)
-        const input = screen.getByPlaceholderText(/Search through all your notes/i)
+        const input = screen.getByPlaceholderText(/Search through all your highlights and notes/i)
 
         fireEvent.change(input, { target: { value: 'hello' } })
 
@@ -49,7 +49,7 @@ describe('SearchClient Components', () => {
 
         // Check if the mock note is rendered
         await waitFor(() => {
-            expect(screen.getByText('hello world')).toBeInTheDocument()
+            expect(screen.getByText(/"hello world"/i)).toBeInTheDocument()
             expect(screen.getByText('Test Book')).toBeInTheDocument()
             expect(screen.getByText('Page 5')).toBeInTheDocument()
         })
@@ -61,12 +61,12 @@ describe('SearchClient Components', () => {
         })
 
         render(<SearchClient />)
-        const input = screen.getByPlaceholderText(/Search through all your notes/i)
+        const input = screen.getByPlaceholderText(/Search through all your highlights and notes/i)
 
         fireEvent.change(input, { target: { value: 'nomatch' } })
 
         await waitFor(() => {
-            expect(screen.getByText(/No notes found for "nomatch"/i)).toBeInTheDocument()
+            expect(screen.getByText(/No results found for "nomatch"/i)).toBeInTheDocument()
         }, { timeout: 1000 })
     })
 })

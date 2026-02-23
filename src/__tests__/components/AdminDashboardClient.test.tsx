@@ -50,11 +50,11 @@ describe('AdminDashboardClient Component', () => {
 
         // Wait for the overview fetch to finish to unblock the UI
         await waitFor(() => {
-            expect(screen.getByText('All Notes Explorer')).toBeInTheDocument()
+            expect(screen.getByText('All Highlights & Notes Explorer')).toBeInTheDocument()
         })
 
         // Click the notes tab
-        const notesTab = screen.getByText('All Notes Explorer')
+        const notesTab = screen.getByText('All Highlights & Notes Explorer')
 
             // Mock the notes fetch before clicking
             ; (global.fetch as jest.Mock).mockResolvedValueOnce({
@@ -67,12 +67,12 @@ describe('AdminDashboardClient Component', () => {
         fireEvent.click(notesTab)
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalledWith('/api/admin/notes?')
+            expect(global.fetch).toHaveBeenCalledWith('/api/admin/highlights?')
         })
 
         await waitFor(() => {
             expect(screen.getByPlaceholderText(/Global Search through ALL users/i)).toBeInTheDocument()
-            expect(screen.getByText('Global note content')).toBeInTheDocument()
+            expect(screen.getByText(/"Global note content"/i)).toBeInTheDocument()
         })
     })
 })
