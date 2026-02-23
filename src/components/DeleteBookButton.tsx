@@ -240,24 +240,6 @@ export function DeleteBookButton({ bookId, bookTitle }: { bookId: string, bookTi
                 .btn-secondary:hover:not(:disabled) {
                     background: var(--border);
                 }
-                .btn-danger {
-                    background: #ef4444;
-                    color: white;
-                }
-                .btn-danger:hover:not(:disabled) {
-                    background: #dc2626;
-                }
-                .spinning {
-                    animation: spin 1s linear infinite;
-                }
-                
-                @keyframes spin {
-                    100% { transform: rotate(360deg); }
-                }
-                @keyframes slideUp {
-                    from { opacity: 0; transform: translateY(10px) scale(0.98); }
-                    to { opacity: 1; transform: translateY(0) scale(1); }
-                }
             `}</style>
         </>
     );
