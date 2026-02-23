@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
             ]
         } : {};
 
-        const notes = await prisma.note.findMany({
+        const highlights = await prisma.highlight.findMany({
             where: whereClause,
             take: 50, // Limit to 50 for performance
             orderBy: { createdAt: "desc" },
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
             }
         });
 
-        return NextResponse.json(notes);
+        return NextResponse.json(highlights);
 
     } catch (error: any) {
         console.error("Admin notes error:", error);

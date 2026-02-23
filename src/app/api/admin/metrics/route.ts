@@ -17,7 +17,7 @@ export async function GET() {
         // Fetch aggregate system metrics
         const totalUsers = await prisma.user.count();
         const totalBooks = await prisma.book.count();
-        const totalNotes = await prisma.note.count();
+        const totalNotes = await prisma.highlight.count();
         const totalBookmarks = await prisma.bookmark.count();
         const totalSessions = await prisma.session.count();
 
