@@ -52,11 +52,23 @@ model User {
   accounts      Account[]
   sessions      Session[]
   books         Book[]
+  folders       Folder[]
   bookmarks     Bookmark[]
   highlights    Highlight[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  books     Book[]
 }
 
 model VerificationToken {
@@ -77,6 +89,9 @@ model Book {
   uploadedAt DateTime   @default(now())
   userId     String
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folderId   String?
+  folder     Folder?    @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  order      Int        @default(0)
   bookmarks  Bookmark[]
   highlights Highlight[]
 }
