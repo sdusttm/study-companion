@@ -4,6 +4,7 @@ import { getServerSession } from "@/lib/auth";
 import { authOptions } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { LibraryGrid, LibraryItem } from "@/components/LibraryGrid";
+import { RenameFolderModal } from "@/components/RenameFolderModal";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -60,8 +61,11 @@ export default async function FolderPage({ params }: { params: Promise<{ id: str
 
             <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>{folder.name}</h1>
-                    <p style={{ color: 'var(--muted-foreground)' }}>Folder</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
+                        <h1 style={{ fontSize: '2rem', fontWeight: 800, margin: 0 }}>{folder.name}</h1>
+                        <RenameFolderModal folderId={folderId} currentName={folder.name} variant="icon" />
+                    </div>
+                    <p style={{ color: 'var(--muted-foreground)', margin: 0 }}>Folder</p>
                 </div>
                 <UploadBook
                     env={{

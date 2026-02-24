@@ -51,3 +51,51 @@ export async function DELETE(
         return NextResponse.json({ error: "Failed to delete folder" }, { status: 500 });
     }
 }
+
+export async function PATCH(
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session || !session.user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const userId = (session.user as any).id;
+        const resolvedParams = await params;
+        const folderId = resolvedParams.id;
+
+        const body = await req.json();
+        const { name } = body;
+
+        if (!name || typeof name !== 'string' || name.trim() === '') {
+            return NextResponse.json({ error: "Valid folder name is required" }, { status: 400 });
+        }
+
+        // Verify folder exists and belongs to user
+        const existingFolder = await prisma.folder.findUnique({
+            where: {
+                id: folderId,
+                userId: userId,
+            },
+        });
+
+        if (!existingFolder) {
+            return NextResponse.json({ error: "Folder not found" }, { status: 404 });
+        }
+
+        const updatedFolder = await prisma.folder.update({
+            where: { id: folderId },
+            data: { name: name.trim() },
+        });
+
+        logActivity(req, 'RENAME_FOLDER', `${existingFolder.name} -> ${updatedFolder.name}`);
+
+        return NextResponse.json(updatedFolder);
+
+    } catch (error) {
+        console.error("Error renaming folder:", error);
+        return NextResponse.json({ error: "Failed to rename folder" }, { status: 500 });
+    }
+}

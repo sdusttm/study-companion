@@ -29,6 +29,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { FileText, Calendar, Folder } from "lucide-react";
 import { DeleteBookButton } from "@/components/DeleteBookButton";
 import { DeleteFolderButton } from "@/components/DeleteFolderButton";
+import { RenameFolderModal } from "@/components/RenameFolderModal";
 
 export type LibraryItemType = "book" | "folder";
 
@@ -135,7 +136,8 @@ function LibraryCardUI({ item, isOverlay }: { item: LibraryItem, isOverlay?: boo
                 </div>
                 {!isOverlay && <FolderDropzone folderId={item.id} />}
                 {!isOverlay && (
-                    <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10 }}>
+                    <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: '0.5rem' }}>
+                        <RenameFolderModal folderId={item.id} currentName={item.title} variant="icon" />
                         <DeleteFolderButton folderId={item.id} folderName={item.title} itemCount={item.itemCount} />
                     </div>
                 )}
