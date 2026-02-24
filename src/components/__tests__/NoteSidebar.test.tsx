@@ -66,23 +66,22 @@ describe('NoteSidebar component', () => {
         expect(global.fetch).toHaveBeenCalledWith('/api/books/123/highlights', expect.any(Object));
     });
 
-    it('filters out empty highlights when Notes Only is active, and shows them when toggled off', async () => {
+    it('shows all highlights by default, and filters out empty ones when Notes Only is active', async () => {
         render(<NoteSidebar bookId="123" currentPage={1} />);
 
         await waitFor(() => {
             expect(screen.getByText(/Test highlight 1/)).toBeInTheDocument();
+            // Test highlight 2 should BE visible because default is false
+            expect(screen.getByText(/Test highlight 2/)).toBeInTheDocument();
         });
 
-        // Test highlight 2 should NOT be visible because it has no comment and default is true
-        expect(screen.queryByText(/Test highlight 2/)).not.toBeInTheDocument();
-
-        // Toggle Notes Only to false
+        // Toggle Notes Only to true
         const toggleInput = document.querySelector('input[type="checkbox"]') as HTMLInputElement;
         fireEvent.click(toggleInput);
 
         await waitFor(() => {
-            // Now the empty highlight should be visible
-            expect(screen.getByText(/Test highlight 2/)).toBeInTheDocument();
+            // Now the empty highlight should NOT be visible
+            expect(screen.queryByText(/Test highlight 2/)).not.toBeInTheDocument();
         });
     });
 

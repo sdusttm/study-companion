@@ -28,6 +28,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { FileText, Calendar, Folder } from "lucide-react";
 import { DeleteBookButton } from "@/components/DeleteBookButton";
+import { DeleteFolderButton } from "@/components/DeleteFolderButton";
 
 export type LibraryItemType = "book" | "folder";
 
@@ -37,6 +38,7 @@ export interface LibraryItem {
     title: string;
     order: number;
     uploadedAt: Date;
+    itemCount?: number;
 }
 
 interface LibraryGridProps {
@@ -132,6 +134,11 @@ function LibraryCardUI({ item, isOverlay }: { item: LibraryItem, isOverlay?: boo
                     </div>
                 </div>
                 {!isOverlay && <FolderDropzone folderId={item.id} />}
+                {!isOverlay && (
+                    <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 10 }}>
+                        <DeleteFolderButton folderId={item.id} folderName={item.title} itemCount={item.itemCount} />
+                    </div>
+                )}
             </>
         );
     }
@@ -211,7 +218,13 @@ function SortableItem({ item }: { item: LibraryItem }) {
 }
 
 export function LibraryGrid({ initialItems, currentFolderId }: LibraryGridProps) {
+    const router = useRouter();
     const [items, setItems] = useState(initialItems);
+
+    useEffect(() => {
+        setItems(initialItems);
+    }, [initialItems]);
+
     const [activeId, setActiveId] = useState<string | null>(null);
 
     // Track the absolute physical pointer so we can re-awaken dnd-kit if the user freezes their hand
@@ -302,6 +315,8 @@ export function LibraryGrid({ initialItems, currentFolderId }: LibraryGridProps)
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ folderId }),
             });
+            // Force server components to re-fetch and pass down fresh state
+            router.refresh();
         } catch (e) {
             console.error("Failed to move book", e);
         }

@@ -40,7 +40,7 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
     const [isSavingHighlight, setIsSavingHighlight] = useState(false);
 
     // Filters
-    const [showNotesOnly, setShowNotesOnly] = useState(true);
+    const [showNotesOnly, setShowNotesOnly] = useState(false);
 
     const router = useRouter();
     const fetchBookmarks = () => {

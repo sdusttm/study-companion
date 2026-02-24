@@ -29,6 +29,11 @@ export default async function Home() {
     prisma.folder.findMany({
       where: { userId },
       orderBy: { order: "asc" },
+      include: {
+        _count: {
+          select: { books: true }
+        }
+      }
     }),
   ]);
 
@@ -39,6 +44,7 @@ export default async function Home() {
       title: f.name,
       order: f.order,
       uploadedAt: f.createdAt,
+      itemCount: f._count.books,
     })),
     ...books.map((b) => ({
       id: b.id,
