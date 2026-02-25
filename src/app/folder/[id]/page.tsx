@@ -39,7 +39,8 @@ export default async function FolderPage({ params }: { params: Promise<{ id: str
             title: true,
             order: true,
             uploadedAt: true,
-            thumbnailUrl: true
+            thumbnailUrl: true,
+            fileHash: true
         }
     });
 
