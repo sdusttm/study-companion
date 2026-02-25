@@ -40,6 +40,7 @@ export interface LibraryItem {
     order: number;
     uploadedAt: Date;
     itemCount?: number;
+    thumbnailUrl?: string | null;
 }
 
 interface LibraryGridProps {
@@ -111,9 +112,10 @@ function LibraryCardUI({ item, isOverlay }: { item: LibraryItem, isOverlay?: boo
                     style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, cursor: isOverlay ? 'grabbing' : 'pointer' }}
                 >
                     <div style={{
-                        background: 'rgba(255, 255, 255, 0.05)',
+                        background: 'var(--surface)',
                         backdropFilter: isOverlay ? 'none' : 'blur(4px)',
-                        height: '100px',
+                        aspectRatio: '3 / 4',
+                        height: 'auto',
                         borderRadius: 'calc(var(--radius) - 4px)',
                         display: 'flex',
                         alignItems: 'center',
@@ -122,7 +124,7 @@ function LibraryCardUI({ item, isOverlay }: { item: LibraryItem, isOverlay?: boo
                         border: '1px solid var(--surface-border)',
                         willChange: isOverlay ? 'transform' : 'auto'
                     }}>
-                        <Folder size={32} />
+                        <Folder size={40} />
                     </div>
                     <div>
                         <h3 style={{ fontSize: '1rem', fontWeight: 600, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -151,19 +153,57 @@ function LibraryCardUI({ item, isOverlay }: { item: LibraryItem, isOverlay?: boo
                 onClick={() => { if (!isOverlay) router.push(`/reader/${item.id}`) }}
                 style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, cursor: isOverlay ? 'grabbing' : 'pointer' }}
             >
-                <div style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    backdropFilter: isOverlay ? 'none' : 'blur(4px)',
-                    height: '100px',
-                    borderRadius: 'calc(var(--radius) - 4px)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--primary)',
-                    border: '1px solid var(--surface-border)',
-                    willChange: isOverlay ? 'transform' : 'auto'
-                }}>
-                    <FileText size={32} />
+                <div
+                    data-testid="book-container"
+                    style={{
+                        background: 'var(--surface)',
+                        backdropFilter: isOverlay ? 'none' : 'blur(4px)',
+                        aspectRatio: '3 / 4',
+                        height: 'auto',
+                        borderRadius: 'calc(var(--radius) - 4px)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--primary)',
+                        border: '1px solid var(--surface-border)',
+                        willChange: isOverlay ? 'transform' : 'auto',
+                        overflow: 'hidden',
+                        position: 'relative',
+                        boxShadow: 'var(--shadow-sm)'
+                    }}>
+                    {item.thumbnailUrl ? (
+                        <>
+                            <img
+                                data-testid="thumbnail-img"
+                                src={item.thumbnailUrl}
+                                alt={item.title}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                            {/* Subtle spine effect */}
+                            <div style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: '10%',
+                                background: 'linear-gradient(to right, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 40%, transparent 100%)',
+                                pointerEvents: 'none'
+                            }} />
+                            {/* Right edge shadow for depth */}
+                            <div style={{
+                                position: 'absolute',
+                                left: '8%',
+                                top: 0,
+                                bottom: 0,
+                                width: '1px',
+                                background: 'rgba(255,255,255,0.1)',
+                                pointerEvents: 'none'
+                            }} />
+                        </>
+                    ) : (
+                        <FileText size={40} />
+                    )}
                 </div>
                 <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>

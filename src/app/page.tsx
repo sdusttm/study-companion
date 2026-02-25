@@ -25,6 +25,14 @@ export default async function Home() {
     prisma.book.findMany({
       where: { userId, folderId: null },
       orderBy: { order: "asc" },
+      select: {
+        id: true,
+        title: true,
+        order: true,
+        uploadedAt: true,
+        thumbnailUrl: true,
+        fileHash: true
+      }
     }),
     prisma.folder.findMany({
       where: { userId },
@@ -52,6 +60,7 @@ export default async function Home() {
       title: b.title,
       order: b.order,
       uploadedAt: b.uploadedAt,
+      thumbnailUrl: b.thumbnailUrl
     })),
   ].sort((a, b) => a.order - b.order); // Initial sort by order
 

@@ -7,6 +7,12 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
 import { sha256 } from "js-sha256";
+import * as pdfjsLib from "pdfjs-dist";
+
+// Configure PDF.js worker
+if (typeof window !== "undefined" && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
+}
 
 export function UploadBook({ env, existingBooks, folderId }: {
     env?: { supabaseUrl: string; supabaseAnonKey: string },
@@ -105,6 +111,34 @@ export function UploadBook({ env, existingBooks, folderId }: {
         await executeUpload(pendingFile, calculatedHash);
     };
 
+    const generateThumbnail = async (file: File): Promise<Blob> => {
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+
+        const viewport = page.getViewport({ scale: 0.5 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        if (!context) throw new Error("Could not get canvas context");
+
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        await page.render({
+            canvasContext: context,
+            viewport: viewport
+        }).promise;
+
+        return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (blob) resolve(blob);
+                else reject(new Error("Canvas toBlob failed"));
+            }, "image/jpeg", 0.8);
+        });
+    };
+
     const executeUpload = async (file: File, calculatedHash: string) => {
         const url = env?.supabaseUrl || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
         const key = env?.supabaseAnonKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -138,7 +172,34 @@ export function UploadBook({ env, existingBooks, folderId }: {
                 throw new Error("Failed to upload to Supabase Storage. Did you create a public 'pdfs' bucket?");
             }
 
-            // 2. Register the uploaded file with our backend database
+            // 2. Generate and upload thumbnail
+            let thumbnailUrl = null;
+            try {
+                const thumbnailBlob = await generateThumbnail(file);
+                const thumbnailFileName = `thumbnails/${uniqueFileName.replace(".pdf", ".jpg")}`;
+
+                const { error: thumbError } = await supabase.storage
+                    .from("pdfs")
+                    .upload(thumbnailFileName, thumbnailBlob, {
+                        contentType: "image/jpeg",
+                        cacheControl: "3600",
+                        upsert: false
+                    });
+
+                if (!thumbError) {
+                    const { data: { publicUrl: thumbPublicUrl } } = supabase.storage
+                        .from("pdfs")
+                        .getPublicUrl(thumbnailFileName);
+                    thumbnailUrl = thumbPublicUrl;
+                } else {
+                    console.error("Thumbnail upload error:", thumbError);
+                }
+            } catch (thumbGenError) {
+                console.error("Thumbnail generation failed:", thumbGenError);
+                // Don't fail the whole upload if thumbnail fails
+            }
+
+            // 3. Register the uploaded file with our backend database
             const { data: { publicUrl } } = supabase.storage.from("pdfs").getPublicUrl(uniqueFileName);
 
             const res = await fetch("/api/upload", {
@@ -149,7 +210,8 @@ export function UploadBook({ env, existingBooks, folderId }: {
                     fileName: uniqueFileName,
                     filePath: publicUrl, // We store the public URL directly now!
                     fileHash: calculatedHash,
-                    folderId: folderId || null
+                    folderId: folderId || null,
+                    thumbnailUrl: thumbnailUrl
                 }),
             });
 

@@ -34,6 +34,13 @@ export default async function FolderPage({ params }: { params: Promise<{ id: str
     const books = await prisma.book.findMany({
         where: { userId, folderId },
         orderBy: { order: "asc" },
+        select: {
+            id: true,
+            title: true,
+            order: true,
+            uploadedAt: true,
+            thumbnailUrl: true
+        }
     });
 
     const items: LibraryItem[] = books.map((b) => ({
@@ -42,6 +49,7 @@ export default async function FolderPage({ params }: { params: Promise<{ id: str
         title: b.title,
         order: b.order,
         uploadedAt: b.uploadedAt,
+        thumbnailUrl: b.thumbnailUrl
     }));
 
     return (

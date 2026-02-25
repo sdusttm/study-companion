@@ -18,6 +18,35 @@ jest.mock('js-sha256', () => ({
     sha256: jest.fn(),
 }));
 
+jest.mock('pdfjs-dist', () => ({
+    getDocument: jest.fn().mockReturnValue({
+        promise: Promise.resolve({
+            getPage: jest.fn().mockResolvedValue({
+                getViewport: jest.fn().mockReturnValue({ width: 100, height: 140 }),
+                render: jest.fn().mockReturnValue({ promise: Promise.resolve() }),
+            }),
+        }),
+    }),
+    GlobalWorkerOptions: {
+        workerSrc: 'mock-worker'
+    },
+    version: '1.0.0'
+}));
+
+// Mock File.prototype.arrayBuffer which is missing in JSDOM
+if (typeof File.prototype.arrayBuffer !== 'function') {
+    File.prototype.arrayBuffer = function () {
+        return Promise.resolve(new ArrayBuffer(8));
+    };
+}
+
+// Mock HTMLCanvasElement.prototype.toBlob which is missing in JSDOM
+if (typeof HTMLCanvasElement.prototype.toBlob !== 'function') {
+    HTMLCanvasElement.prototype.toBlob = function (callback: any) {
+        callback(new Blob(['fake-image'], { type: 'image/jpeg' }));
+    };
+}
+
 // Mock global alert
 const mockAlert = jest.fn();
 global.alert = mockAlert;
@@ -54,11 +83,11 @@ describe('UploadBook component', () => {
             },
         });
 
-        // Mock global fetch for our self-hosted backend
+        // Explicitly mock global.fetch
         global.fetch = jest.fn().mockResolvedValue({
             ok: true,
             json: jest.fn().mockResolvedValue({ book: { id: 'book-123' } }),
-        }) as jest.Mock;
+        });
     });
 
     it('renders the upload button', () => {
@@ -93,6 +122,7 @@ describe('UploadBook component', () => {
             expect(mockSupabaseUpload).toHaveBeenCalled();
             expect(global.fetch).toHaveBeenCalledWith('/api/upload', expect.objectContaining({
                 method: 'POST',
+                body: expect.stringContaining('"thumbnailUrl":"http://fakeurl.com/pdf"')
             }));
         });
 
