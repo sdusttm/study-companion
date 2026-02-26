@@ -76,21 +76,33 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
         fetchHighlights();
         const handleBookmarkUpdated = () => fetchBookmarks();
 
-        const handleHighlightUpdated = (e: Event) => {
+        const handleHighlightAdded = (e: Event) => {
             const customEvent = e as CustomEvent;
             if (customEvent.detail && customEvent.detail.id) {
-                setHighlights(prev => [...prev, customEvent.detail]);
+                setHighlights(prev => {
+                    if (prev.find(h => h.id === customEvent.detail.id)) return prev;
+                    return [...prev, customEvent.detail];
+                });
             } else {
                 fetchHighlights();
             }
         };
 
+        const handleHighlightUpdated = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            if (customEvent.detail && customEvent.detail.id) {
+                setHighlights(prev => prev.map(h => h.id === customEvent.detail.id ? { ...h, ...customEvent.detail } : h));
+            }
+        };
+
         window.addEventListener("bookmark-added", handleBookmarkUpdated);
-        window.addEventListener("highlight-added", handleHighlightUpdated);
+        window.addEventListener("highlight-added", handleHighlightAdded);
+        window.addEventListener("highlight-updated", handleHighlightUpdated);
 
         return () => {
             window.removeEventListener("bookmark-added", handleBookmarkUpdated);
-            window.removeEventListener("highlight-added", handleHighlightUpdated);
+            window.removeEventListener("highlight-added", handleHighlightAdded);
+            window.removeEventListener("highlight-updated", handleHighlightUpdated);
         };
     }, [bookId]);
 

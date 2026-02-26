@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, BookmarkPlus, Maximize } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, BookmarkPlus, Maximize, Trash2, X, Edit3, Check } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 
 // react-pdf-viewer imports
@@ -44,13 +45,82 @@ export function PDFViewer({
     // Initial jump state flag
     const [initialJumpDone, setInitialJumpDone] = useState(false);
 
+    // In-place editing state
+    const [activeHighlightId, setActiveHighlightId] = useState<string | null>(null);
+    const [popoverPosition, setPopoverPosition] = useState<{ left: number, top: number } | null>(null);
+    const viewerContainerRef = useRef<HTMLDivElement>(null);
+
+    // Use refs for latest state to keep plugin callbacks stable
+    const highlightsRef = useRef(highlights);
+    const activeHighlightIdRef = useRef(activeHighlightId);
+
+    useEffect(() => {
+        highlightsRef.current = highlights;
+    }, [highlights]);
+
+    useEffect(() => {
+        activeHighlightIdRef.current = activeHighlightId;
+    }, [activeHighlightId]);
+
     const pageNavigationPluginInstance = pageNavigationPlugin();
+    const scrollModePluginInstance = scrollModePlugin();
     const { jumpToPage } = pageNavigationPluginInstance;
 
-    const scrollModePluginInstance = scrollModePlugin();
+    // Maintain a ref to the latest highlight plugin instance for async callbacks
+    const highlightPluginInstanceRef = useRef<any>(null);
 
-    // Core highlight plugin instantiation
-    const highlightPluginInstance = highlightPlugin({
+    const handleDeleteHighlight = useCallback(async (id: string) => {
+        if (!confirm("Are you sure you want to delete this highlight?")) return;
+        try {
+            const res = await fetch(`/api/highlights/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setHighlights(prev => prev.filter(h => h.id !== id));
+                setActiveHighlightId(null);
+                window.dispatchEvent(new CustomEvent('highlight-deleted', { detail: { id } }));
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }, []);
+
+    const handleUpdateNote = useCallback(async (id: string, comment: string) => {
+        try {
+            const res = await fetch(`/api/highlights/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comment })
+            });
+            if (res.ok) {
+                const updated = await res.json();
+                setHighlights(prev => prev.map(h => h.id === id ? { ...h, comment: updated.comment } : h));
+                window.dispatchEvent(new CustomEvent('highlight-updated', { detail: updated }));
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }, []);
+
+    const handleSaveHighlight = useCallback(async (highlightDraft: any) => {
+        try {
+            const res = await fetch(`/api/books/${bookId}/highlights`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(highlightDraft)
+            });
+
+            if (res.ok) {
+                const saved = await res.json();
+                setHighlights(prev => [...prev, saved]);
+                window.dispatchEvent(new CustomEvent('highlight-added', { detail: saved }));
+                setActiveHighlightId(saved.id);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }, [bookId]);
+
+    // Stabilize the configuration for the highlight plugin
+    const highlightConfig = useMemo(() => ({
         trigger: Trigger.TextSelection,
         renderHighlightTarget: (renderProps: RenderHighlightTargetProps) => (
             <div className="highlight-popup glass" style={{
@@ -90,7 +160,7 @@ export function PDFViewer({
                         onClick={() => {
                             const newHighlight = {
                                 content: renderProps.selectedText,
-                                color: swatch.name.toLowerCase(), // Save string mnemonic
+                                color: swatch.name.toLowerCase(),
                                 position: renderProps.highlightAreas,
                                 comment: '',
                                 pageNumber: renderProps.highlightAreas[0].pageIndex + 1
@@ -104,56 +174,120 @@ export function PDFViewer({
             </div>
         ),
         renderHighlights: (renderProps: RenderHighlightsProps) => {
-            const pageHighlights = highlights.filter(h => {
-                // Ignore buggy legacy coordinates from react-pdf-highlighter
+            const pageHighlights = highlightsRef.current.filter(h => {
                 if (!Array.isArray(h.position)) return false;
-
                 return h.position.some((area: any) => area.pageIndex === renderProps.pageIndex);
             });
 
             return (
-                <div>
+                <div key={`highlights-${renderProps.pageIndex}`}>
                     {pageHighlights.map(h => {
                         const areasOnPage = h.position.filter((area: any) => area.pageIndex === renderProps.pageIndex);
-
-                        // Map database string to visual RGBA color
                         const colorMap: Record<string, string> = {
-                            'yellow': 'rgba(255, 226, 143, 0.8)',
-                            'green': 'rgba(172, 236, 172, 0.8)',
-                            'blue': 'rgba(164, 203, 255, 0.8)',
-                            'pink': 'rgba(255, 179, 217, 0.8)',
-                            'purple': 'rgba(219, 185, 255, 0.8)'
+                            'yellow': 'rgba(255, 226, 143, 0.4)',
+                            'green': 'rgba(172, 236, 172, 0.4)',
+                            'blue': 'rgba(164, 203, 255, 0.4)',
+                            'pink': 'rgba(255, 179, 217, 0.4)',
+                            'purple': 'rgba(219, 185, 255, 0.4)'
                         };
                         const bgColor = colorMap[h.color || 'yellow'] || colorMap['yellow'];
+                        const isActive = h.id === activeHighlightIdRef.current;
 
                         return areasOnPage.map((area: any, idx: number) => (
                             <div
                                 key={`${h.id}-${idx}`}
                                 style={{
-                                    ...renderProps.getCssProperties(area, renderProps.rotation),
                                     position: 'absolute',
-                                    backgroundColor: bgColor,
-                                    mixBlendMode: 'multiply',
-                                    pointerEvents: 'auto',
-                                    cursor: 'pointer',
-                                    zIndex: 10
+                                    ...renderProps.getCssProperties(area, renderProps.rotation),
+                                    pointerEvents: 'none',
+                                    zIndex: isActive ? 1000 : 100 // High zIndex to be above text layer
                                 }}
-                                onClick={() => {
-                                    window.dispatchEvent(new CustomEvent('edit-highlight', { detail: { id: h.id } }));
-                                }}
-                                title="Click to edit note"
-                            />
+                            >
+                                <div
+                                    data-highlight-id={h.id}
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        backgroundColor: bgColor,
+                                        mixBlendMode: 'multiply',
+                                        pointerEvents: 'auto',
+                                        cursor: 'pointer',
+                                        border: isActive ? '2px solid var(--primary)' : 'none',
+                                        borderRadius: '2px',
+                                        userSelect: 'none'
+                                    }}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setActiveHighlightId(h.id);
+                                    }}
+                                    title="Click to view/edit note"
+                                />
+                            </div>
                         ));
                     })}
                 </div>
             );
         }
-    });
+    }), [handleSaveHighlight]); // Only changes if handleSaveHighlight changes (which is stable)
+
+    // Core highlight plugin instantiation
+    const highlightPluginInstance = highlightPlugin(highlightConfig);
+
+    // Update ref to current instance
+    useEffect(() => {
+        highlightPluginInstanceRef.current = highlightPluginInstance;
+    }, [highlightPluginInstance]);
+
+    // Update popover position when activeHighlightId changes or during scroll
+    useEffect(() => {
+        if (!activeHighlightId || !viewerContainerRef.current) {
+            setPopoverPosition(null);
+            return;
+        }
+
+        let retryCount = 0;
+        const maxRetries = 10;
+        let timeoutId: NodeJS.Timeout;
+
+        const updatePosition = () => {
+            const highlightElement = viewerContainerRef.current?.querySelector(`[data-highlight-id="${activeHighlightId}"]`);
+            if (highlightElement) {
+                const highlightRect = highlightElement.getBoundingClientRect();
+                const containerRect = viewerContainerRef.current!.getBoundingClientRect();
+
+                setPopoverPosition({
+                    left: highlightRect.left - containerRect.left + (highlightRect.width / 2),
+                    top: highlightRect.top - containerRect.top
+                });
+            } else if (retryCount < maxRetries) {
+                retryCount++;
+                timeoutId = setTimeout(updatePosition, 100);
+            }
+        };
+
+        updatePosition();
+
+        // Listen for scroll events in the PDF viewer's scrolling container
+        const scrollContainer = viewerContainerRef.current.querySelector('.rpv-core__inner-pages');
+        if (scrollContainer) {
+            scrollContainer.addEventListener('scroll', updatePosition);
+            window.addEventListener('resize', updatePosition);
+            return () => {
+                scrollContainer.removeEventListener('scroll', updatePosition);
+                window.removeEventListener('resize', updatePosition);
+                if (timeoutId) clearTimeout(timeoutId);
+            };
+        }
+        return () => {
+            if (timeoutId) clearTimeout(timeoutId);
+        };
+    }, [activeHighlightId]);
 
     // Listen to sidebar click jump events
     useEffect(() => {
         const handleNavigateToHighlight = (e: CustomEvent<{ highlightId: string }>) => {
-            const h = highlights.find(item => item.id === e.detail.highlightId);
+            const h = highlightsRef.current.find(item => item.id === e.detail.highlightId);
             if (h && Array.isArray(h.position) && h.position.length > 0) {
                 // @react-pdf-viewer is 0-indexed internally
                 const targetPageIndex = h.position[0].pageIndex;
@@ -162,50 +296,44 @@ export function PDFViewer({
                 isProgrammaticScrollRef.current = true;
                 internalPageRef.current = newPage;
 
-                // The highlight library natively handles scrolling into the specific rectangle view!
-                // We subtract 5 from the 'top' percentage to scroll slightly above the highlight, providing reading context
-                const areaWithContext = {
-                    ...h.position[0],
-                    top: Math.max(0, h.position[0].top - 5)
-                };
-                highlightPluginInstance.jumpToHighlightArea(areaWithContext);
-
+                // Sync parent state first to update page indicators
                 if (newPage !== currentPage) {
                     onPageChange(newPage);
                 }
 
-                // Allow some time before recording manual scrolls again
+                // Set active highlight to open popover
+                setActiveHighlightId(h.id);
+
+                // Small delay to ensure React state update (onPageChange) has started/settled
+                // and to allow the viewer to prepare for the jump
                 setTimeout(() => {
-                    isProgrammaticScrollRef.current = false;
-                }, 1000);
+                    const areaWithContext = {
+                        ...h.position[0],
+                        top: Math.max(0, h.position[0].top - 5)
+                    };
+
+                    try {
+                        // Always use the latest plugin instance via ref
+                        if (highlightPluginInstanceRef.current) {
+                            highlightPluginInstanceRef.current.jumpToHighlightArea(areaWithContext);
+                        }
+                    } catch (err) {
+                        console.error("PDFViewer: Failed to jump", err);
+                        // Fallback to simple page jump if highlight jump fails
+                        jumpToPage(targetPageIndex);
+                    }
+
+                    // Keep programmatic scroll lock for a bit longer to absorb bounce events
+                    setTimeout(() => {
+                        isProgrammaticScrollRef.current = false;
+                    }, 1000);
+                }, 50);
             }
         };
 
         window.addEventListener('navigate-to-highlight', handleNavigateToHighlight as EventListener);
         return () => window.removeEventListener('navigate-to-highlight', handleNavigateToHighlight as EventListener);
-    }, [highlights, highlightPluginInstance, currentPage, onPageChange]);
-
-    // Save highlight to DB
-    const handleSaveHighlight = async (highlightDraft: any) => {
-        try {
-            const res = await fetch(`/api/books/${bookId}/highlights`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(highlightDraft)
-            });
-
-            if (res.ok) {
-                const saved = await res.json();
-                setHighlights(prev => [...prev, saved]);
-                // Dispatch event to update sidebar
-                window.dispatchEvent(new CustomEvent('highlight-added', { detail: saved }));
-                // Automatically open the corresponding Note textarea box
-                window.dispatchEvent(new CustomEvent('edit-highlight', { detail: { id: saved.id } }));
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    };
+    }, [highlightPluginInstance, jumpToPage, currentPage, onPageChange]);
 
     // Fetch highlights and listen for external deletions
     useEffect(() => {
@@ -448,11 +576,13 @@ export function PDFViewer({
 
             {/* PDF Document Container */}
             <div
+                ref={viewerContainerRef}
                 style={{
                     flex: 1,
                     background: 'var(--muted)',
                     padding: '2rem',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    position: 'relative' // Essential for coordinate tracking
                 }}
             >
                 <div style={{ position: 'relative', width: '100%', height: '100%', maxWidth: '1200px', margin: '0 auto', boxShadow: 'var(--shadow-lg)' }}>
@@ -487,6 +617,159 @@ export function PDFViewer({
                         />
                     </Worker>
                 </div>
+
+                {/* Portal for HighlightPopover */}
+                {activeHighlightId && popoverPosition && createPortal(
+                    <HighlightPopover
+                        highlight={highlights.find(h => h.id === activeHighlightId)}
+                        onClose={() => setActiveHighlightId(null)}
+                        onDelete={handleDeleteHighlight}
+                        onUpdate={handleUpdateNote}
+                        containerStyle={{
+                            left: `${popoverPosition.left}px`,
+                            top: `${popoverPosition.top}px`,
+                        }}
+                    />,
+                    viewerContainerRef.current!
+                )}
+            </div>
+        </div>
+    );
+}
+
+function HighlightPopover({
+    highlight,
+    onClose,
+    onDelete,
+    onUpdate,
+    containerStyle
+}: {
+    highlight: any,
+    onClose: () => void,
+    onDelete: (id: string) => void,
+    onUpdate: (id: string, comment: string) => Promise<void>,
+    containerStyle: React.CSSProperties
+}) {
+    const [isEditing, setIsEditing] = useState(false);
+    const [note, setNote] = useState(highlight?.comment || "");
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        await onUpdate(highlight.id, note);
+        setIsSaving(false);
+        setIsEditing(false);
+    };
+
+    if (!highlight) return null;
+
+    return (
+        <div style={{
+            ...containerStyle,
+            position: 'absolute',
+            zIndex: 10000,
+            pointerEvents: 'auto',
+            transform: 'translate(-50%, -100%)', // Center and move above the highlight
+            marginTop: '-10px',
+        }}>
+            <div className="glass" style={{
+                padding: '1rem',
+                borderRadius: 'var(--radius)',
+                width: '280px',
+                boxShadow: 'var(--shadow-lg)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                border: '1px solid var(--surface-border)',
+                background: 'rgba(255, 255, 255, 0.9)', // Higher opacity for readability
+                color: 'var(--foreground)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)'
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)' }}>Note</span>
+                    <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--muted-foreground)' }}>
+                        <X size={14} />
+                    </button>
+                </div>
+
+                {isEditing ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <textarea
+                            autoFocus
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            className="input-field"
+                            placeholder="Add your note..."
+                            style={{
+                                width: '100%',
+                                minHeight: '80px',
+                                fontSize: '0.875rem',
+                                padding: '0.5rem',
+                                resize: 'vertical',
+                                background: 'var(--background)',
+                                color: 'var(--foreground)'
+                            }}
+                        />
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                            <button
+                                className="btn btn-secondary"
+                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                onClick={() => {
+                                    setIsEditing(false);
+                                    setNote(highlight.comment || "");
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn btn-primary"
+                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                disabled={isSaving}
+                                onClick={handleSave}
+                            >
+                                {isSaving ? "Saving..." : "Save"}
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {highlight.comment && (
+                            <p style={{ fontSize: '0.875rem', margin: 0, whiteSpace: 'pre-wrap', textAlign: 'left' }}>{highlight.comment}</p>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <button
+                                className="btn btn-secondary"
+                                style={{ padding: '0.4rem', borderRadius: '50%', color: 'var(--destructive)', height: 'auto', minHeight: 0 }}
+                                onClick={() => onDelete(highlight.id)}
+                                title="Delete Highlight"
+                            >
+                                <Trash2 size={14} />
+                            </button>
+                            <button
+                                className="btn btn-secondary"
+                                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', borderRadius: '999px', gap: '4px', height: 'auto', minHeight: 0 }}
+                                onClick={() => setIsEditing(true)}
+                            >
+                                <Edit3 size={12} />
+                                {highlight.comment ? "Edit" : "Add Note"}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Arrow/Tail for the popover */}
+                <div style={{
+                    position: 'absolute',
+                    bottom: '-6px',
+                    left: '50%',
+                    transform: 'translateX(-50%) rotate(45deg)',
+                    width: '12px',
+                    height: '12px',
+                    background: 'inherit',
+                    borderRight: '1px solid var(--surface-border)',
+                    borderBottom: '1px solid var(--surface-border)',
+                }} />
             </div>
         </div>
     );

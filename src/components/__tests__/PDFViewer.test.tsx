@@ -14,7 +14,7 @@ jest.mock('@react-pdf-viewer/core', () => {
     return {
         ...originalModule,
         Worker: ({ children }: any) => <div data-testid="pdf-worker">{children}</div>,
-        Viewer: ({ fileUrl, initialPage, onDocumentLoad }: any) => {
+        Viewer: ({ fileUrl, initialPage, onDocumentLoad, plugins }: any) => {
             // Simulate document load immediately so buttons are enabled
             setTimeout(() => onDocumentLoad && onDocumentLoad({ doc: { numPages: 10 } }), 0);
             return (
@@ -28,7 +28,9 @@ jest.mock('@react-pdf-viewer/core', () => {
 });
 
 jest.mock('@react-pdf-viewer/highlight', () => ({
-    highlightPlugin: jest.fn().mockReturnValue({}),
+    highlightPlugin: jest.fn().mockReturnValue({
+        jumpToHighlightArea: jest.fn()
+    }),
     Trigger: { TextSelection: 'TextSelection' },
 }));
 
@@ -45,6 +47,7 @@ describe('PDFViewer component', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        jest.useFakeTimers();
 
         mockRouterPush = jest.fn();
         (useRouter as jest.Mock).mockReturnValue({
@@ -56,6 +59,11 @@ describe('PDFViewer component', () => {
             ok: true,
             json: jest.fn().mockResolvedValue([]),
         }) as jest.Mock;
+    });
+
+    afterEach(() => {
+        jest.runOnlyPendingTimers();
+        jest.useRealTimers();
     });
 
     it('renders the core viewer with standard props', async () => {
@@ -177,5 +185,53 @@ describe('PDFViewer component', () => {
                 body: JSON.stringify({ pageNumber: 5 })
             }));
         });
+    });
+
+    it('handles navigate-to-highlight event correctly', async () => {
+        const onPageChange = jest.fn();
+        const mockHighlights = [
+            { id: 'h1', position: [{ pageIndex: 12, left: 10, top: 20, width: 30, height: 40 }] }
+        ];
+
+        // Access the highlightPlugin mock to get the jumpToHighlightArea mock
+        const { highlightPlugin } = require('@react-pdf-viewer/highlight');
+        const mockJump = highlightPlugin().jumpToHighlightArea;
+
+        (global.fetch as jest.Mock).mockResolvedValue({
+            ok: true,
+            json: jest.fn().mockResolvedValue(mockHighlights),
+        });
+
+        await act(async () => {
+            render(
+                <PDFViewer
+                    pdfUrl="http://fakeurl.com/doc.pdf"
+                    bookId="123"
+                    bookTitle="Test Document"
+                    currentPage={1}
+                    onPageChange={onPageChange}
+                />
+            );
+        });
+
+        // Trigger the event
+        act(() => {
+            window.dispatchEvent(new CustomEvent('navigate-to-highlight', {
+                detail: { highlightId: 'h1' }
+            }));
+        });
+
+        // Should call onPageChange immediately
+        expect(onPageChange).toHaveBeenCalledWith(13);
+
+        // Fast-forward 50ms for the jump delay
+        act(() => {
+            jest.advanceTimersByTime(50);
+        });
+
+        expect(mockJump).toHaveBeenCalledWith(expect.objectContaining({
+            pageIndex: 12,
+            top: 15 // 20 - 5
+        }));
     });
 });

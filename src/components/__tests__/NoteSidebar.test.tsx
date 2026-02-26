@@ -214,4 +214,25 @@ describe('NoteSidebar component', () => {
             expect(global.fetch).toHaveBeenCalledWith('/api/bookmarks/b1', expect.objectContaining({ method: 'DELETE' }));
         });
     });
+
+    it('dispatches navigate-to-highlight event when a highlight card is clicked', async () => {
+        const dispatchSpy = jest.spyOn(window, 'dispatchEvent');
+        render(<NoteSidebar bookId="123" currentPage={1} />);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Test highlight 1/)).toBeInTheDocument();
+        });
+
+        const highlightCard = screen.getByText(/Test highlight 1/).closest('.card');
+        if (!highlightCard) throw new Error('Highlight card not found');
+
+        fireEvent.click(highlightCard);
+
+        expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({
+            type: 'navigate-to-highlight',
+            detail: { highlightId: 'h1' }
+        }));
+
+        dispatchSpy.mockRestore();
+    });
 });
