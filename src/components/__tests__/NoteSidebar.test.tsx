@@ -235,4 +235,23 @@ describe('NoteSidebar component', () => {
 
         dispatchSpy.mockRestore();
     });
+
+    it('applies compact styling to tabs and cards', async () => {
+        render(<NoteSidebar bookId="123" currentPage={1} />);
+
+        // Check tabs header padding
+        const tabsHeader = screen.getByText(/Annotations/i).parentElement;
+        expect(tabsHeader).toHaveStyle({ padding: '0.375rem' });
+
+        // Check highlight card padding
+        await waitFor(() => {
+            expect(screen.getByText(/Test highlight 1/)).toBeInTheDocument();
+        });
+        const highlightCard = screen.getByText(/Test highlight 1/).closest('.card');
+        expect(highlightCard).toHaveStyle({ padding: '0.5rem' });
+
+        // Check font size in highlight content
+        const highlightContent = screen.getByText(/Test highlight 1/);
+        expect(highlightContent).toHaveStyle({ fontSize: '0.8125rem' });
+    });
 });

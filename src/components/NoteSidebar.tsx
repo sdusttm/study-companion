@@ -239,27 +239,27 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Tabs Header */}
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--surface-border)', padding: '0.5rem', gap: '0.5rem', background: 'rgba(0,0,0,0.02)', flexShrink: 0 }}>
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--surface-border)', padding: '0.375rem', gap: '0.375rem', background: 'rgba(0,0,0,0.02)', flexShrink: 0 }}>
                 <button
                     onClick={() => setActiveTab("highlights")}
-                    style={{ flex: 1, padding: '0.5rem', borderRadius: 'var(--radius)', background: activeTab === 'highlights' ? 'var(--background)' : 'transparent', border: '1px solid', borderColor: activeTab === 'highlights' ? 'var(--surface-border)' : 'transparent', boxShadow: activeTab === 'highlights' ? 'var(--shadow-sm)' : 'none', fontWeight: 600, cursor: 'pointer', outline: 'none', transition: 'all 0.2s', color: 'var(--foreground)' }}
+                    style={{ flex: 1, padding: '0.375rem', borderRadius: 'var(--radius)', background: activeTab === 'highlights' ? 'var(--background)' : 'transparent', border: '1px solid', borderColor: activeTab === 'highlights' ? 'var(--surface-border)' : 'transparent', boxShadow: activeTab === 'highlights' ? 'var(--shadow-sm)' : 'none', fontWeight: 600, cursor: 'pointer', outline: 'none', transition: 'all 0.2s', color: 'var(--foreground)' }}
                 >
-                    Annotations {highlights.length > 0 && <span style={{ marginLeft: '4px', background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '2px 6px', fontSize: '0.75rem', borderRadius: '999px' }}>{highlights.length}</span>}
+                    Annotations {highlights.length > 0 && <span style={{ marginLeft: '4px', background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '1px 5px', fontSize: '0.7rem', borderRadius: '999px' }}>{highlights.length}</span>}
                 </button>
                 <button
                     onClick={() => setActiveTab("bookmarks")}
-                    style={{ flex: 1, padding: '0.5rem', borderRadius: 'var(--radius)', background: activeTab === 'bookmarks' ? 'var(--background)' : 'transparent', border: '1px solid', borderColor: activeTab === 'bookmarks' ? 'var(--surface-border)' : 'transparent', boxShadow: activeTab === 'bookmarks' ? 'var(--shadow-sm)' : 'none', fontWeight: activeTab === 'bookmarks' ? 600 : 400, cursor: 'pointer', outline: 'none', transition: 'all 0.2s', color: 'var(--foreground)' }}
+                    style={{ flex: 1, padding: '0.375rem', borderRadius: 'var(--radius)', background: activeTab === 'bookmarks' ? 'var(--background)' : 'transparent', border: '1px solid', borderColor: activeTab === 'bookmarks' ? 'var(--surface-border)' : 'transparent', boxShadow: activeTab === 'bookmarks' ? 'var(--shadow-sm)' : 'none', fontWeight: activeTab === 'bookmarks' ? 600 : 400, cursor: 'pointer', outline: 'none', transition: 'all 0.2s', color: 'var(--foreground)' }}
                 >
-                    Bookmarks {bookmarks.length > 0 && <span style={{ marginLeft: '4px', background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '2px 6px', fontSize: '0.75rem', borderRadius: '999px' }}>{bookmarks.length}</span>}
+                    Bookmarks {bookmarks.length > 0 && <span style={{ marginLeft: '4px', background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '1px 5px', fontSize: '0.7rem', borderRadius: '999px' }}>{bookmarks.length}</span>}
                 </button>
             </div>
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 {activeTab === 'bookmarks' ? (
                     <>
-                        <div style={{ padding: '1.5rem 1.5rem 0', flexShrink: 0 }}>
-                            <header style={{ marginBottom: '1rem' }}>
-                                <p style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>Your saved pages</p>
+                        <div style={{ padding: '1rem 1rem 0', flexShrink: 0 }}>
+                            <header style={{ marginBottom: '0.5rem' }}>
+                                <p style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>Your saved pages</p>
                             </header>
                         </div>
 
@@ -268,9 +268,9 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                 <Loader2 className="spinning" size={24} />
                             </div>
                         ) : (
-                            <div style={{ flex: 1, overflowY: 'auto', padding: '0 1.5rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', minHeight: 0 }}>
+                            <div style={{ flex: 1, overflowY: 'auto', padding: '0 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.375rem', minHeight: 0 }}>
                                 {bookmarks.length === 0 ? (
-                                    <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', marginTop: '2rem', fontSize: '0.875rem' }}>
+                                    <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', marginTop: '2rem', fontSize: '0.8rem' }}>
                                         No bookmarks yet. Save a page using the button above!
                                     </p>
                                 ) : (
@@ -278,7 +278,7 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                         <div
                                             key={bookmark.id}
                                             className="card hoverable"
-                                            style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'pointer', border: currentPage === bookmark.pageNumber ? '1px solid var(--primary)' : undefined }}
+                                            style={{ padding: '0.5rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.375rem', cursor: 'pointer', border: currentPage === bookmark.pageNumber ? '1px solid var(--primary)' : undefined }}
                                             onClick={() => router.push(`?page=${bookmark.pageNumber}`)}
                                         >
                                             {editingBookmarkId === bookmark.id ? (
@@ -332,13 +332,13 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                     </>
                 ) : activeTab === 'highlights' ? (
                     <>
-                        <div style={{ padding: '1rem 1.5rem 1rem', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', lineHeight: 1 }}>
+                        <div style={{ padding: '0.75rem 1rem 0.5rem', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem', fontWeight: 500, display: 'flex', alignItems: 'center', lineHeight: 1 }}>
                                 Your text highlights
                             </div>
 
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', userSelect: 'none', margin: 0 }}>
-                                <span style={{ fontSize: '0.75rem', color: showNotesOnly ? 'var(--foreground)' : 'var(--muted-foreground)', fontWeight: showNotesOnly ? 500 : 400, transition: 'color 0.2s', lineHeight: 1, display: 'flex', alignItems: 'center' }}>Notes Only</span>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', cursor: 'pointer', userSelect: 'none', margin: 0 }}>
+                                <span style={{ fontSize: '0.7rem', color: showNotesOnly ? 'var(--foreground)' : 'var(--muted-foreground)', fontWeight: showNotesOnly ? 500 : 400, transition: 'color 0.2s', lineHeight: 1, display: 'flex', alignItems: 'center' }}>Notes Only</span>
                                 <div style={{
                                     position: 'relative',
                                     width: '36px',
@@ -375,10 +375,10 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                 <Loader2 className="spinning" size={24} />
                             </div>
                         ) : (
-                            <div style={{ flex: 1, overflowY: 'auto', padding: '0 1.5rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', minHeight: 0 }}>
+                            <div style={{ flex: 1, overflowY: 'auto', padding: '0 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', minHeight: 0 }}>
                                 {sortedHighlightPages.length === 1 && sortedHighlightPages[0] === currentPage && highlights.length === 0 ? (
                                     <div ref={activeHighlightRef} style={{ scrollMarginTop: '1rem' }}>
-                                        <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', marginTop: '1rem', fontSize: '0.875rem' }}>
+                                        <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem' }}>
                                             No notes yet. Select text in the PDF to create one!
                                         </p>
                                     </div>
@@ -392,8 +392,8 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                 style={{
                                                     display: 'flex',
                                                     flexDirection: 'column',
-                                                    gap: '0.5rem',
-                                                    padding: '0.5rem 0.75rem',
+                                                    gap: '0.375rem',
+                                                    padding: '0.375rem 0.5rem',
                                                     background: isActive ? 'rgba(var(--primary-rgb), 0.05)' : 'transparent',
                                                     borderLeft: isActive ? '3px solid var(--primary)' : '3px solid transparent',
                                                     borderRadius: '0 var(--radius) var(--radius) 0',
@@ -402,16 +402,16 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                 }}
                                             >
                                                 <h3 style={{
-                                                    fontSize: '0.875rem',
+                                                    fontSize: '0.8rem',
                                                     fontWeight: 600,
                                                     color: isActive ? 'var(--primary)' : 'var(--muted-foreground)',
                                                     margin: 0,
                                                     display: 'flex',
                                                     alignItems: 'center',
-                                                    gap: '0.5rem'
+                                                    gap: '0.375rem'
                                                 }}>
                                                     Page {pageNum}
-                                                    {isActive && <span style={{ fontSize: '0.7rem', padding: '2px 6px', background: 'var(--primary)', color: 'var(--primary-foreground)', borderRadius: '999px', fontWeight: 'bold' }}>Current</span>}
+                                                    {isActive && <span style={{ fontSize: '0.65rem', padding: '1px 5px', background: 'var(--primary)', color: 'var(--primary-foreground)', borderRadius: '999px', fontWeight: 'bold' }}>Current</span>}
                                                 </h3>
                                                 {highlightsByPage[pageNum] && highlightsByPage[pageNum].length > 0 ? (
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -423,7 +423,7 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                                     window.dispatchEvent(new CustomEvent('navigate-to-highlight', { detail: { highlightId: highlight.id } }));
                                                                 }}
                                                                 style={{
-                                                                    padding: '0.75rem',
+                                                                    padding: '0.5rem',
                                                                     borderTop: currentPage === highlight.pageNumber ? '1px solid rgba(var(--primary-rgb), 0.3)' : '1px solid var(--surface-border)',
                                                                     borderRight: currentPage === highlight.pageNumber ? '1px solid rgba(var(--primary-rgb), 0.3)' : '1px solid var(--surface-border)',
                                                                     borderBottom: currentPage === highlight.pageNumber ? '1px solid rgba(var(--primary-rgb), 0.3)' : '1px solid var(--surface-border)',
@@ -438,12 +438,12 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                                         }`
                                                                 }}
                                                             >
-                                                                <p style={{ fontSize: '0.875rem', fontStyle: 'italic', margin: 0, color: 'var(--foreground)' }}>
+                                                                <p style={{ fontSize: '0.8125rem', fontStyle: 'italic', margin: 0, color: 'var(--foreground)' }}>
                                                                     &quot;{highlight.content}&quot;
                                                                 </p>
 
                                                                 {editingHighlightId === highlight.id ? (
-                                                                    <form onSubmit={(e) => handleSaveHighlightComment(highlight.id, e)} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.75rem', width: '100%' }}>
+                                                                    <form onSubmit={(e) => handleSaveHighlightComment(highlight.id, e)} style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginTop: '0.5rem', width: '100%' }}>
                                                                         <textarea
                                                                             autoFocus
                                                                             value={editHighlightComment}
@@ -457,29 +457,29 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                                             }}
                                                                             className="input-field"
                                                                             placeholder="Add your note..."
-                                                                            style={{ padding: '0.5rem', flex: 1, minHeight: '60px', width: '100%', resize: 'vertical', fontSize: '0.875rem', borderRadius: 'var(--radius)' }}
+                                                                            style={{ padding: '0.375rem', flex: 1, minHeight: '50px', width: '100%', resize: 'vertical', fontSize: '0.8125rem', borderRadius: 'var(--radius)' }}
                                                                             disabled={isSavingHighlight}
                                                                         />
-                                                                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                                                            <button type="button" disabled={isSavingHighlight} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', minHeight: 0, height: 'auto', fontSize: '0.75rem' }} onClick={(e) => { e.stopPropagation(); setEditingHighlightId(null); }}>Cancel</button>
-                                                                            <button type="submit" disabled={isSavingHighlight} className="btn btn-primary" style={{ padding: '0.25rem 0.5rem', minHeight: 0, height: 'auto', fontSize: '0.75rem' }} onClick={e => e.stopPropagation()}>Save</button>
+                                                                        <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
+                                                                            <button type="button" disabled={isSavingHighlight} className="btn btn-secondary" style={{ padding: '0.2rem 0.4rem', minHeight: 0, height: 'auto', fontSize: '0.7rem' }} onClick={(e) => { e.stopPropagation(); setEditingHighlightId(null); }}>Cancel</button>
+                                                                            <button type="submit" disabled={isSavingHighlight} className="btn btn-primary" style={{ padding: '0.2rem 0.4rem', minHeight: 0, height: 'auto', fontSize: '0.7rem' }} onClick={e => e.stopPropagation()}>Save</button>
                                                                         </div>
                                                                     </form>
                                                                 ) : highlight.comment ? (
-                                                                    <div style={{ marginTop: '0.75rem', padding: '0.5rem', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--surface-border)' }}>
-                                                                        <p style={{ fontSize: '0.875rem', whiteSpace: 'pre-wrap', margin: 0, color: 'var(--foreground)' }}>{highlight.comment}</p>
+                                                                    <div style={{ marginTop: '0.5rem', padding: '0.375rem', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--surface-border)' }}>
+                                                                        <p style={{ fontSize: '0.8125rem', whiteSpace: 'pre-wrap', margin: 0, color: 'var(--foreground)' }}>{highlight.comment}</p>
                                                                     </div>
                                                                 ) : null}
 
-                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
-                                                                    <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
+                                                                    <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)' }}>
                                                                         {new Date(highlight.createdAt).toLocaleDateString()}
                                                                     </div>
-                                                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                                    <div style={{ display: 'flex', gap: '0.375rem' }}>
                                                                         {editingHighlightId !== highlight.id && (
                                                                             <button
                                                                                 className="btn btn-secondary"
-                                                                                style={{ padding: '0.25rem 0.6rem', minHeight: 0, height: 'auto', fontSize: '0.75rem', borderRadius: '999px' }}
+                                                                                style={{ padding: '0.2rem 0.5rem', minHeight: 0, height: 'auto', fontSize: '0.7rem', borderRadius: '999px' }}
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
                                                                                     setEditingHighlightId(highlight.id);
@@ -491,11 +491,11 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                                         )}
                                                                         <button
                                                                             className="btn btn-secondary"
-                                                                            style={{ padding: '0.4rem', minHeight: 0, height: 'auto', color: 'var(--destructive)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                                            style={{ padding: '0.375rem', minHeight: 0, height: 'auto', color: 'var(--destructive)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                                                             onClick={(e) => deleteHighlight(highlight.id, e)}
                                                                             title="Delete Highlight"
                                                                         >
-                                                                            <Trash2 size={14} />
+                                                                            <Trash2 size={12} />
                                                                         </button>
                                                                     </div>
                                                                 </div>
