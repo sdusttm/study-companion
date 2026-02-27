@@ -16,8 +16,8 @@ describe('NoteSidebar component', () => {
     let mockRouterRefresh: jest.Mock;
 
     const mockHighlights = [
-        { id: 'h1', pageNumber: 1, content: 'Test highlight 1', comment: 'Test note 1', createdAt: '2023-01-01T00:00:00Z', color: 'yellow' },
-        { id: 'h2', pageNumber: 2, content: 'Test highlight 2', comment: '', createdAt: '2023-01-02T00:00:00Z', color: 'green' },
+        { id: 'h1', pageNumber: 1, content: 'Test highlight 1', notes: [{ id: 'n1', content: 'Test note 1', createdAt: '2023-01-01T00:00:00Z' }], createdAt: '2023-01-01T00:00:00Z', color: 'yellow' },
+        { id: 'h2', pageNumber: 2, content: 'Test highlight 2', notes: [], createdAt: '2023-01-02T00:00:00Z', color: 'green' },
     ];
 
     const mockBookmarks = [
@@ -113,8 +113,8 @@ describe('NoteSidebar component', () => {
         });
 
         await waitFor(() => {
-            const saveBtn = screen.getByRole('button', { name: /Save/i });
-            expect(saveBtn).toBeInTheDocument();
+            const addBtn = screen.getByRole('button', { name: /\+ Add Note/i });
+            expect(addBtn).toBeInTheDocument();
         });
     });
 
@@ -128,7 +128,7 @@ describe('NoteSidebar component', () => {
         // Reset fetch tracking to ensure no new fetch calls are made
         (global.fetch as jest.Mock).mockClear();
 
-        const newHighlight = { id: 'h3', pageNumber: 10, content: 'New H3', comment: 'Added comment', createdAt: '2023-01-03T00:00:00Z', color: 'pink' };
+        const newHighlight = { id: 'h3', pageNumber: 10, content: 'New H3', notes: [{ id: 'n3', content: 'Added comment', createdAt: '2023-01-03T00:00:00Z' }], createdAt: '2023-01-03T00:00:00Z', color: 'pink' };
 
         act(() => {
             window.dispatchEvent(new CustomEvent('highlight-added', { detail: newHighlight }));
@@ -142,42 +142,42 @@ describe('NoteSidebar component', () => {
         expect(global.fetch).not.toHaveBeenCalled();
     });
 
-    it('can save a comment on a highlight', async () => {
+    it('can add a note to a highlight', async () => {
         render(<NoteSidebar bookId="123" currentPage={1} />);
 
         await waitFor(() => {
             expect(screen.getByText(/Test highlight 1/)).toBeInTheDocument();
         });
 
-        // Click Edit Note icon to open textarea
-        const editNoteBtns = screen.getAllByRole('button', { name: /Edit note/i });
-        fireEvent.click(editNoteBtns[0]);
+        // Click Add Note button
+        const addNoteBtns = screen.getAllByRole('button', { name: /\+ Add Note/i });
+        fireEvent.click(addNoteBtns[0]);
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: /Save/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /^Add$/i })).toBeInTheDocument();
         });
 
         const textarea = screen.getByRole('textbox');
-        fireEvent.change(textarea, { target: { value: 'Updated comment text' } });
+        fireEvent.change(textarea, { target: { value: 'New note text' } });
 
-        // Change fetch to return successful patch response
+        // Change fetch to return successful post response
         global.fetch = jest.fn().mockResolvedValue({
             ok: true,
-            json: jest.fn().mockResolvedValue({ comment: 'Updated comment text' }),
+            json: jest.fn().mockResolvedValue({ id: 'n2', content: 'New note text', createdAt: new Date().toISOString() }),
         }) as jest.Mock;
 
-        const saveBtn = screen.getByRole('button', { name: /Save/i });
-        fireEvent.click(saveBtn);
+        const addBtn = screen.getByRole('button', { name: /^Add$/i });
+        fireEvent.click(addBtn);
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalledWith('/api/highlights/h1', expect.objectContaining({
-                method: 'PATCH',
-                body: JSON.stringify({ comment: 'Updated comment text' }),
+            expect(global.fetch).toHaveBeenCalledWith('/api/highlights/h1/notes', expect.objectContaining({
+                method: 'POST',
+                body: JSON.stringify({ content: 'New note text' }),
             }));
-            // The editor should hide after sync 
-            expect(screen.queryByRole('button', { name: /Save/i })).not.toBeInTheDocument();
+            // The editor should hide after sync
+            expect(screen.queryByRole('button', { name: /^Add$/i })).not.toBeInTheDocument();
             // The new text should be present
-            expect(screen.getByText(/Updated comment text/)).toBeInTheDocument();
+            expect(screen.getByText(/New note text/)).toBeInTheDocument();
         });
     });
 

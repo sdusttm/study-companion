@@ -18,6 +18,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
                 bookId: resolvedParams.id,
                 userId: (session.user as any).id,
             },
+            include: {
+                notes: {
+                    orderBy: { createdAt: 'asc' }
+                }
+            },
             orderBy: { pageNumber: "asc" },
         });
 
@@ -65,7 +70,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
                 position,
                 comment,
                 pageNumber,
+                notes: comment ? {
+                    create: {
+                        content: comment
+                    }
+                } : undefined
             },
+            include: {
+                notes: true
+            }
         });
 
         return NextResponse.json(highlight, { status: 201 });

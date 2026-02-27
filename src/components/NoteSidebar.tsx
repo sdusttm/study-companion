@@ -10,11 +10,18 @@ interface Bookmark {
     title: string;
 }
 
+interface Note {
+    id: string;
+    content: string;
+    createdAt: string;
+}
+
 interface Highlight {
     id: string;
     pageNumber: number;
     content: string;
     comment?: string;
+    notes: Note[];
     color?: string;
     createdAt: string;
 }
@@ -130,19 +137,22 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
 
     const handleSaveHighlightComment = async (id: string, e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        if (!editHighlightComment.trim() && !highlights.find(h => h.id === id)?.comment) return;
+        const content = editHighlightComment.trim();
+        if (!content) return;
 
         setIsSavingHighlight(true);
         try {
-            const res = await fetch(`/api/highlights/${id}`, {
-                method: "PATCH",
+            const res = await fetch(`/api/highlights/${id}/notes`, {
+                method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ comment: editHighlightComment.trim() }),
+                body: JSON.stringify({ content }),
             });
 
             if (res.ok) {
-                const saved = await res.json();
-                setHighlights((prev) => prev.map(h => h.id === id ? { ...h, comment: saved.comment } : h));
+                const newNote = await res.json();
+                setHighlights((prev) => prev.map(h =>
+                    h.id === id ? { ...h, notes: [...(h.notes || []), newNote] } : h
+                ));
                 setEditingHighlightId(null);
                 setEditHighlightComment("");
             } else {
@@ -150,8 +160,29 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
             }
         } catch (err) {
             console.error(err);
+            alert("Error saving note");
         } finally {
             setIsSavingHighlight(false);
+        }
+    };
+
+    const handleDeleteNote = async (highlightId: string, noteId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm("Are you sure you want to delete this note?")) return;
+
+        try {
+            const res = await fetch(`/api/notes/${noteId}`, {
+                method: "DELETE",
+            });
+            if (res.ok) {
+                setHighlights(prev => prev.map(h =>
+                    h.id === highlightId ? { ...h, notes: h.notes.filter(n => n.id !== noteId) } : h
+                ));
+            } else {
+                alert("Failed to delete note");
+            }
+        } catch (error) {
+            console.error(error);
         }
     };
 
@@ -461,13 +492,36 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                                             disabled={isSavingHighlight}
                                                                         />
                                                                         <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
-                                                                            <button type="button" disabled={isSavingHighlight} className="btn btn-secondary" style={{ padding: '0.2rem 0.4rem', minHeight: 0, height: 'auto', fontSize: '0.7rem' }} onClick={(e) => { e.stopPropagation(); setEditingHighlightId(null); }}>Cancel</button>
-                                                                            <button type="submit" disabled={isSavingHighlight} className="btn btn-primary" style={{ padding: '0.2rem 0.4rem', minHeight: 0, height: 'auto', fontSize: '0.7rem' }} onClick={e => e.stopPropagation()}>Save</button>
+                                                                            <button type="button" disabled={isSavingHighlight} className="btn btn-secondary" style={{ padding: '0.2rem 0.4rem', minHeight: 0, height: 'auto', fontSize: '0.7rem' }} onClick={(e) => { e.stopPropagation(); setEditingHighlightId(null); setEditHighlightComment(""); }}>Cancel</button>
+                                                                            <button type="submit" disabled={isSavingHighlight} className="btn btn-primary" style={{ padding: '0.2rem 0.4rem', minHeight: 0, height: 'auto', fontSize: '0.7rem' }} onClick={e => e.stopPropagation()}>Add</button>
                                                                         </div>
                                                                     </form>
-                                                                ) : highlight.comment ? (
-                                                                    <div style={{ marginTop: '0.5rem', padding: '0.375rem', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--surface-border)' }}>
-                                                                        <p style={{ fontSize: '0.8125rem', whiteSpace: 'pre-wrap', margin: 0, color: 'var(--foreground)' }}>{highlight.comment}</p>
+                                                                ) : highlight.notes && highlight.notes.length > 0 ? (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginTop: '0.5rem' }}>
+                                                                        {highlight.notes.map((note) => (
+                                                                            <div key={note.id} style={{ padding: '0.375rem', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--surface-border)', position: 'relative' }} className="note-item">
+                                                                                <p style={{ fontSize: '0.8125rem', whiteSpace: 'pre-wrap', margin: 0, color: 'var(--foreground)', paddingRight: '20px' }}>{note.content}</p>
+                                                                                <button
+                                                                                    onClick={(e) => handleDeleteNote(highlight.id, note.id, e)}
+                                                                                    style={{
+                                                                                        position: 'absolute',
+                                                                                        top: '4px',
+                                                                                        right: '4px',
+                                                                                        background: 'transparent',
+                                                                                        border: 'none',
+                                                                                        color: 'var(--muted-foreground)',
+                                                                                        cursor: 'pointer',
+                                                                                        padding: '2px',
+                                                                                        display: 'flex',
+                                                                                        alignItems: 'center',
+                                                                                        justifyContent: 'center'
+                                                                                    }}
+                                                                                    title="Delete Note"
+                                                                                >
+                                                                                    <Trash2 size={10} />
+                                                                                </button>
+                                                                            </div>
+                                                                        ))}
                                                                     </div>
                                                                 ) : null}
 
@@ -483,10 +537,10 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
                                                                                     setEditingHighlightId(highlight.id);
-                                                                                    setEditHighlightComment(highlight.comment || "");
+                                                                                    setEditHighlightComment("");
                                                                                 }}
                                                                             >
-                                                                                {highlight.comment ? "Edit Note" : "+ Add Note"}
+                                                                                + Add Note
                                                                             </button>
                                                                         )}
                                                                         <button

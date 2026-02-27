@@ -9,7 +9,7 @@ datasource db {
 }
 
 model Account {
-  id                String  @id @default(cuid())
+  id                String   @id @default(cuid())
   userId            String
   type              String
   provider          String
@@ -21,11 +21,9 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -35,30 +33,28 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model User {
-  id            String     @id @default(cuid())
+  id            String        @id @default(cuid())
   name          String?
-  email         String?    @unique
+  email         String?       @unique
   emailVerified DateTime?
   image         String?
   password      String?
-  role          String     @default("USER")
+  role          String        @default("USER")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
   accounts      Account[]
-  sessions      Session[]
-  books         Book[]
-  folders       Folder[]
-  bookmarks     Bookmark[]
-  highlights    Highlight[]
   activityLogs  ActivityLog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  books         Book[]
+  bookmarks     Bookmark[]
+  folders       Folder[]
+  highlights    Highlight[]
+  sessions      Session[]
 }
 
 model Folder {
@@ -68,8 +64,8 @@ model Folder {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   books     Book[]
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -81,60 +77,69 @@ model VerificationToken {
 }
 
 model Book {
-  id         String     @id @default(cuid())
-  title      String
-  fileName   String
-  filePath   String
-  fileHash   String?    // SHA-256 hash of the PDF for deduplication
-  lastPage   Int        @default(1)
-  uploadedAt DateTime   @default(now())
-  userId     String
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  folderId   String?
-  folder     Folder?    @relation(fields: [folderId], references: [id], onDelete: Cascade)
-  order      Int        @default(0)
+  id           String      @id @default(cuid())
+  title        String
+  fileName     String
+  filePath     String
+  lastPage     Int         @default(1)
+  uploadedAt   DateTime    @default(now())
+  userId       String
+  fileHash     String?
+  folderId     String?
+  order        Int         @default(0)
   thumbnailUrl String?
-  bookmarks  Bookmark[]
-  highlights Highlight[]
+  folder       Folder?     @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookmarks    Bookmark[]
+  highlights   Highlight[]
 }
 
 model Bookmark {
   id         String   @id @default(cuid())
   bookId     String
-  book       Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
   pageNumber Int
   title      String?
   createdAt  DateTime @default(now())
   userId     String
+  book       Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
-
 
 model Highlight {
   id         String   @id @default(cuid())
   bookId     String
   userId     String
   content    String
-  color      String   @default("yellow")
   position   Json
   comment    String?
   pageNumber Int
   createdAt  DateTime @default(now())
-  
-  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  color      String   @default("yellow")
+  updatedAt  DateTime @default(now()) @updatedAt
+  book       Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes      Note[]
+}
+
+model Note {
+  id          String    @id @default(cuid())
+  content     String
+  highlightId String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  highlight   Highlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
 }
 
 model ActivityLog {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   action    String
   details   String?
   ipAddress String?
   userAgent String?
   location  String?
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([createdAt])

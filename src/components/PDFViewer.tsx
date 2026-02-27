@@ -16,6 +16,22 @@ import '@react-pdf-viewer/core/lib/styles/index.css';
 import '@react-pdf-viewer/highlight/lib/styles/index.css';
 import '@react-pdf-viewer/page-navigation/lib/styles/index.css';
 
+interface Note {
+    id: string;
+    content: string;
+    createdAt: string;
+}
+
+interface Highlight {
+    id: string;
+    pageNumber: number;
+    content: string;
+    notes: Note[];
+    color?: string;
+    createdAt: string;
+    position: any;
+}
+
 // Re-using same UI components for existing highlights
 export function PDFViewer({
     pdfUrl,
@@ -37,7 +53,7 @@ export function PDFViewer({
     const debouncedPage = useDebounce(currentPage, 1000);
     const [isBookmarking, setIsBookmarking] = useState(false);
 
-    const [highlights, setHighlights] = useState<Array<any>>([]);
+    const [highlights, setHighlights] = useState<Highlight[]>([]);
     const [isLoadingHighlights, setIsLoadingHighlights] = useState(true);
 
     const isProgrammaticScrollRef = useRef(false);
@@ -83,20 +99,37 @@ export function PDFViewer({
         }
     }, []);
 
-    const handleUpdateNote = useCallback(async (id: string, comment: string) => {
+    const handleAddNote = useCallback(async (highlightId: string, content: string) => {
         try {
-            const res = await fetch(`/api/highlights/${id}`, {
-                method: 'PATCH',
+            const res = await fetch(`/api/highlights/${highlightId}/notes`, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ comment })
+                body: JSON.stringify({ content })
             });
             if (res.ok) {
-                const updated = await res.json();
-                setHighlights(prev => prev.map(h => h.id === id ? { ...h, comment: updated.comment } : h));
-                window.dispatchEvent(new CustomEvent('highlight-updated', { detail: updated }));
+                const newNote = await res.json();
+                setHighlights(prev => prev.map(h =>
+                    h.id === highlightId ? { ...h, notes: [...(h.notes || []), newNote] } : h
+                ));
             }
-        } catch (err) {
-            console.error(err);
+        } catch (error) {
+            console.error(error);
+        }
+    }, []);
+
+    const handleDeleteNote = useCallback(async (highlightId: string, noteId: string) => {
+        if (!confirm("Are you sure you want to delete this note?")) return;
+        try {
+            const res = await fetch(`/api/notes/${noteId}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                setHighlights(prev => prev.map(h =>
+                    h.id === highlightId ? { ...h, notes: h.notes.filter((n: any) => n.id !== noteId) } : h
+                ));
+            }
+        } catch (error) {
+            console.error(error);
         }
     }, []);
 
@@ -624,7 +657,8 @@ export function PDFViewer({
                         highlight={highlights.find(h => h.id === activeHighlightId)}
                         onClose={() => setActiveHighlightId(null)}
                         onDelete={handleDeleteHighlight}
-                        onUpdate={handleUpdateNote}
+                        onAddNote={handleAddNote}
+                        onDeleteNote={handleDeleteNote}
                         containerStyle={{
                             left: `${popoverPosition.left}px`,
                             top: `${popoverPosition.top}px`,
@@ -641,24 +675,28 @@ function HighlightPopover({
     highlight,
     onClose,
     onDelete,
-    onUpdate,
+    onAddNote,
+    onDeleteNote,
     containerStyle
 }: {
-    highlight: any,
+    highlight: Highlight | undefined,
     onClose: () => void,
     onDelete: (id: string) => void,
-    onUpdate: (id: string, comment: string) => Promise<void>,
+    onAddNote: (id: string, content: string) => Promise<void>,
+    onDeleteNote: (highlightId: string, noteId: string) => Promise<void>,
     containerStyle: React.CSSProperties
 }) {
-    const [isEditing, setIsEditing] = useState(false);
-    const [note, setNote] = useState(highlight?.comment || "");
+    const [isAdding, setIsAdding] = useState(false);
+    const [newNote, setNewNote] = useState("");
     const [isSaving, setIsSaving] = useState(false);
 
-    const handleSave = async () => {
+    const handleAdd = async () => {
+        if (!newNote.trim()) return;
         setIsSaving(true);
-        await onUpdate(highlight.id, note);
+        await onAddNote(highlight!.id, newNote.trim());
         setIsSaving(false);
-        setIsEditing(false);
+        setIsAdding(false);
+        setNewNote("");
     };
 
     if (!highlight) return null;
@@ -675,36 +713,71 @@ function HighlightPopover({
             <div className="glass" style={{
                 padding: '1rem',
                 borderRadius: 'var(--radius)',
-                width: '280px',
+                width: '300px',
                 boxShadow: 'var(--shadow-lg)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '0.75rem',
                 border: '1px solid var(--surface-border)',
-                background: 'rgba(255, 255, 255, 0.9)', // Higher opacity for readability
+                background: 'rgba(255, 255, 255, 0.95)',
                 color: 'var(--foreground)',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)'
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)' }}>Note</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)' }}>Notes</span>
                     <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--muted-foreground)' }}>
                         <X size={14} />
                     </button>
                 </div>
 
-                {isEditing ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
+                    {highlight.notes && highlight.notes.length > 0 ? (
+                        highlight.notes.map((note) => (
+                            <div key={note.id} style={{
+                                padding: '0.5rem',
+                                background: 'var(--surface)',
+                                borderRadius: 'var(--radius)',
+                                border: '1px solid var(--surface-border)',
+                                position: 'relative'
+                            }}>
+                                <p style={{ fontSize: '0.8125rem', margin: 0, whiteSpace: 'pre-wrap', textAlign: 'left', paddingRight: '20px' }}>
+                                    {note.content}
+                                </p>
+                                <button
+                                    onClick={() => onDeleteNote(highlight.id, note.id)}
+                                    style={{
+                                        position: 'absolute',
+                                        top: '4px',
+                                        right: '4px',
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: 'var(--muted-foreground)',
+                                        cursor: 'pointer',
+                                        padding: '2px'
+                                    }}
+                                >
+                                    <Trash2 size={10} />
+                                </button>
+                            </div>
+                        ))
+                    ) : (
+                        <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', fontStyle: 'italic', margin: 0 }}>No notes yet.</p>
+                    )}
+                </div>
+
+                {isAdding ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         <textarea
                             autoFocus
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
+                            value={newNote}
+                            onChange={(e) => setNewNote(e.target.value)}
                             className="input-field"
-                            placeholder="Add your note..."
+                            placeholder="Add a new note..."
                             style={{
                                 width: '100%',
-                                minHeight: '80px',
-                                fontSize: '0.875rem',
+                                minHeight: '60px',
+                                fontSize: '0.8125rem',
                                 padding: '0.5rem',
                                 resize: 'vertical',
                                 background: 'var(--background)',
@@ -714,47 +787,38 @@ function HighlightPopover({
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                             <button
                                 className="btn btn-secondary"
-                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                                onClick={() => {
-                                    setIsEditing(false);
-                                    setNote(highlight.comment || "");
-                                }}
+                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', height: 'auto', minHeight: 0 }}
+                                onClick={() => setIsAdding(false)}
                             >
                                 Cancel
                             </button>
                             <button
                                 className="btn btn-primary"
-                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', height: 'auto', minHeight: 0 }}
                                 disabled={isSaving}
-                                onClick={handleSave}
+                                onClick={handleAdd}
                             >
-                                {isSaving ? "Saving..." : "Save"}
+                                {isSaving ? "Adding..." : "Add Note"}
                             </button>
                         </div>
                     </div>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {highlight.comment && (
-                            <p style={{ fontSize: '0.875rem', margin: 0, whiteSpace: 'pre-wrap', textAlign: 'left' }}>{highlight.comment}</p>
-                        )}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <button
-                                className="btn btn-secondary"
-                                style={{ padding: '0.4rem', borderRadius: '50%', color: 'var(--destructive)', height: 'auto', minHeight: 0 }}
-                                onClick={() => onDelete(highlight.id)}
-                                title="Delete Highlight"
-                            >
-                                <Trash2 size={14} />
-                            </button>
-                            <button
-                                className="btn btn-secondary"
-                                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', borderRadius: '999px', gap: '4px', height: 'auto', minHeight: 0 }}
-                                onClick={() => setIsEditing(true)}
-                            >
-                                <Edit3 size={12} />
-                                {highlight.comment ? "Edit" : "Add Note"}
-                            </button>
-                        </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                        <button
+                            className="btn btn-secondary"
+                            style={{ padding: '0.4rem', borderRadius: '50%', color: 'var(--destructive)', height: 'auto', minHeight: 0 }}
+                            onClick={() => onDelete(highlight.id)}
+                            title="Delete Highlight"
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                        <button
+                            className="btn btn-secondary"
+                            style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', borderRadius: '999px', height: 'auto', minHeight: 0 }}
+                            onClick={() => setIsAdding(true)}
+                        >
+                            + Add Note
+                        </button>
                     </div>
                 )}
 
