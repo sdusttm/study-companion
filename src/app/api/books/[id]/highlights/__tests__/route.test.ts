@@ -74,6 +74,11 @@ describe('/api/books/[id]/highlights', () => {
 
             expect(prisma.highlight.findMany).toHaveBeenCalledWith({
                 where: { bookId: 'b1', userId: 'u1' },
+                include: {
+                    notes: {
+                        orderBy: { createdAt: 'asc' }
+                    }
+                },
                 orderBy: { pageNumber: 'asc' },
             });
         });
@@ -150,6 +155,14 @@ describe('/api/books/[id]/highlights', () => {
                     position: [{ top: 10 }],
                     comment: 'Cool',
                     pageNumber: 1,
+                    notes: {
+                        create: {
+                            content: 'Cool'
+                        }
+                    }
+                },
+                include: {
+                    notes: true
                 }
             });
         });
