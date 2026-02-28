@@ -467,30 +467,8 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                                     &quot;{highlight.content}&quot;
                                                                 </p>
 
-                                                                {editingHighlightId === highlight.id ? (
-                                                                    <form onSubmit={(e) => handleSaveHighlightComment(highlight.id, e)} style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginTop: '0.5rem', width: '100%' }}>
-                                                                        <textarea
-                                                                            autoFocus
-                                                                            value={editHighlightComment}
-                                                                            onChange={e => setEditHighlightComment(e.target.value)}
-                                                                            onClick={e => e.stopPropagation()}
-                                                                            onKeyDown={(e) => {
-                                                                                if (e.key === 'Enter' && !e.shiftKey) {
-                                                                                    e.preventDefault();
-                                                                                    handleSaveHighlightComment(highlight.id);
-                                                                                }
-                                                                            }}
-                                                                            className="input-field"
-                                                                            placeholder="Add your note..."
-                                                                            style={{ padding: '0.375rem', flex: 1, minHeight: '50px', width: '100%', resize: 'vertical', fontSize: '0.8125rem', borderRadius: 'var(--radius)' }}
-                                                                            disabled={isSavingHighlight}
-                                                                        />
-                                                                        <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
-                                                                            <button type="button" disabled={isSavingHighlight} className="btn btn-secondary" style={{ padding: '0.2rem 0.4rem', minHeight: 0, height: 'auto', fontSize: '0.7rem' }} onClick={(e) => { e.stopPropagation(); setEditingHighlightId(null); setEditHighlightComment(""); }}>Cancel</button>
-                                                                            <button type="submit" disabled={isSavingHighlight} className="btn btn-primary" style={{ padding: '0.2rem 0.4rem', minHeight: 0, height: 'auto', fontSize: '0.7rem' }} onClick={e => e.stopPropagation()}>Add</button>
-                                                                        </div>
-                                                                    </form>
-                                                                ) : highlight.notes && highlight.notes.length > 0 ? (
+                                                                {/* Existing Notes */}
+                                                                {highlight.notes && highlight.notes.length > 0 && (
                                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginTop: '0.5rem' }}>
                                                                         {highlight.notes.map((note) => (
                                                                             <div key={note.id} style={{ padding: '0.375rem', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--surface-border)', position: 'relative' }} className="note-item">
@@ -517,7 +495,33 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                                             </div>
                                                                         ))}
                                                                     </div>
-                                                                ) : null}
+                                                                )}
+
+                                                                {/* Add Note Form */}
+                                                                {editingHighlightId === highlight.id && (
+                                                                    <form onSubmit={(e) => handleSaveHighlightComment(highlight.id, e)} style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginTop: '0.5rem', width: '100%' }}>
+                                                                        <textarea
+                                                                            autoFocus
+                                                                            value={editHighlightComment}
+                                                                            onChange={e => setEditHighlightComment(e.target.value)}
+                                                                            onClick={e => e.stopPropagation()}
+                                                                            onKeyDown={(e) => {
+                                                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                                                    e.preventDefault();
+                                                                                    handleSaveHighlightComment(highlight.id);
+                                                                                }
+                                                                            }}
+                                                                            className="input-field"
+                                                                            placeholder="Add your note..."
+                                                                            style={{ padding: '0.375rem', flex: 1, minHeight: '50px', width: '100%', resize: 'vertical', fontSize: '0.8125rem', borderRadius: 'var(--radius)' }}
+                                                                            disabled={isSavingHighlight}
+                                                                        />
+                                                                        <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
+                                                                            <button type="button" disabled={isSavingHighlight} className="btn btn-secondary" style={{ padding: '0.2rem 0.4rem', minHeight: 0, height: 'auto', fontSize: '0.7rem' }} onClick={(e) => { e.stopPropagation(); setEditingHighlightId(null); setEditHighlightComment(""); }}>Cancel</button>
+                                                                            <button type="submit" disabled={isSavingHighlight} className="btn btn-primary" style={{ padding: '0.2rem 0.4rem', minHeight: 0, height: 'auto', fontSize: '0.7rem' }} onClick={e => e.stopPropagation()}>Add</button>
+                                                                        </div>
+                                                                    </form>
+                                                                )}
 
                                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
                                                                     <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)' }}>
