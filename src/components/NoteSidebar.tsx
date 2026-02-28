@@ -407,13 +407,7 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                             </div>
                         ) : (
                             <div style={{ flex: 1, overflowY: 'auto', padding: '0 1rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', minHeight: 0 }}>
-                                {sortedHighlightPages.length === 1 && sortedHighlightPages[0] === currentPage && highlights.length === 0 ? (
-                                    <div ref={activeHighlightRef} style={{ scrollMarginTop: '1rem' }}>
-                                        <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', marginTop: '1rem', fontSize: '0.8rem' }}>
-                                            No notes yet. Select text in the PDF to create one!
-                                        </p>
-                                    </div>
-                                ) : (
+                                {sortedHighlightPages.length === 1 && sortedHighlightPages[0] === currentPage && highlights.length === 0 ? null : (
                                     sortedHighlightPages.map(pageNum => {
                                         const isActive = pageNum === currentPage;
                                         return (

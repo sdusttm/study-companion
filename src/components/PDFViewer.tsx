@@ -761,9 +761,7 @@ function HighlightPopover({
                                 </button>
                             </div>
                         ))
-                    ) : (
-                        <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', fontStyle: 'italic', margin: 0 }}>No notes yet.</p>
-                    )}
+                    ) : null}
                 </div>
 
                 {isAdding ? (
