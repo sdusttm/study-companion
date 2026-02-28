@@ -669,7 +669,7 @@ export function PDFViewer({
     );
 }
 
-function HighlightPopover({
+export function HighlightPopover({
     highlight,
     onClose,
     onDelete,
@@ -765,27 +765,38 @@ function HighlightPopover({
                                     {note.content}
                                 </p>
                                 <button
-                                    onClick={() => handleDeleteNoteClick(highlight.id, note.id)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteNoteClick(highlight.id, note.id);
+                                    }}
                                     style={{
                                         position: 'absolute',
                                         top: '2px',
                                         right: '2px',
                                         background: confirmDeleteNoteId === note.id ? 'var(--destructive)' : 'transparent',
                                         border: 'none',
-                                        color: confirmDeleteNoteId === note.id ? '#fff' : 'var(--muted-foreground)',
+                                        color: confirmDeleteNoteId === note.id ? 'var(--destructive-foreground)' : 'var(--muted-foreground)',
                                         borderRadius: '4px',
                                         cursor: 'pointer',
-                                        padding: '2px',
+                                        padding: confirmDeleteNoteId === note.id ? '1px 4px' : '2px',
                                         opacity: 1,
                                         transition: 'all 0.2s',
                                         display: 'flex',
                                         alignItems: 'center',
+                                        gap: '2px',
                                         justifyContent: 'center',
-                                        zIndex: 10
+                                        zIndex: 10,
+                                        fontSize: '9px',
+                                        fontWeight: 600
                                     }}
                                     title={confirmDeleteNoteId === note.id ? "Confirm Delete" : "Delete Note"}
                                 >
-                                    {confirmDeleteNoteId === note.id ? <Check size={10} /> : <Trash2 size={10} />}
+                                    {confirmDeleteNoteId === note.id ? (
+                                        <>
+                                            <span>Delete?</span>
+                                            <Check size={8} />
+                                        </>
+                                    ) : <Trash2 size={10} />}
                                 </button>
                             </div>
                         ))}
@@ -833,21 +844,32 @@ function HighlightPopover({
                         <button
                             className="btn btn-secondary"
                             style={{
-                                padding: '0.25rem',
-                                borderRadius: '50%',
+                                padding: confirmDeleteHighlight ? '0.2rem 0.5rem' : '0.25rem',
+                                borderRadius: confirmDeleteHighlight ? 'var(--radius-sm)' : '50%',
                                 background: confirmDeleteHighlight ? 'var(--destructive)' : '',
-                                color: confirmDeleteHighlight ? '#fff' : 'var(--destructive)',
+                                color: confirmDeleteHighlight ? 'var(--destructive-foreground)' : 'var(--destructive)',
                                 height: 'auto',
                                 minHeight: 0,
                                 display: 'flex',
                                 alignItems: 'center',
+                                gap: '4px',
                                 justifyContent: 'center',
-                                transition: 'all 0.2s'
+                                transition: 'all 0.2s',
+                                fontSize: '10px',
+                                fontWeight: 600
                             }}
-                            onClick={() => handleDeleteHighlightClick(highlight.id)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteHighlightClick(highlight.id);
+                            }}
                             title={confirmDeleteHighlight ? "Confirm Delete" : "Delete Highlight"}
                         >
-                            {confirmDeleteHighlight ? <Check size={12} /> : <Trash2 size={12} />}
+                            {confirmDeleteHighlight ? (
+                                <>
+                                    <span>Delete?</span>
+                                    <Check size={10} />
+                                </>
+                            ) : <Trash2 size={12} />}
                         </button>
                         <button
                             className="btn btn-secondary"

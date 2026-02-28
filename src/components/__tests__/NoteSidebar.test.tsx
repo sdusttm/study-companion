@@ -36,7 +36,10 @@ describe('NoteSidebar component', () => {
             push: jest.fn()
         });
 
-        global.fetch = jest.fn((url) => {
+        global.fetch = jest.fn((url, options) => {
+            if (options?.method === 'DELETE') {
+                return Promise.resolve({ ok: true });
+            }
             if (url.includes('/bookmarks')) {
                 return Promise.resolve({
                     ok: true,
@@ -49,7 +52,7 @@ describe('NoteSidebar component', () => {
                     json: () => Promise.resolve(mockHighlights),
                 });
             }
-            return Promise.reject(new Error('Unknown target API url'));
+            return Promise.reject(new Error(`Unknown target API url: ${url}`));
         }) as jest.Mock;
     });
 
@@ -181,23 +184,57 @@ describe('NoteSidebar component', () => {
         });
     });
 
-    it('can delete a highlight', async () => {
+    it('can delete a highlight with two-step confirmation', async () => {
         render(<NoteSidebar bookId="123" currentPage={1} />);
 
         await waitFor(() => {
             expect(screen.getByText(/Test highlight 1/)).toBeInTheDocument();
         });
 
-        // The trash button uses a title "Delete Highlight"
+        // First click: triggers "Delete?" state
         const deleteHighlightBtns = screen.getAllByRole('button', { name: /Delete Highlight/i });
         fireEvent.click(deleteHighlightBtns[0]);
 
+        // Verify the label changed to "Delete?"
+        expect(screen.getByText(/Delete\?/i)).toBeInTheDocument();
+        expect(global.fetch).not.toHaveBeenCalledWith('/api/highlights/h1', expect.any(Object));
+
+        // Second click: performs deletion
+        const confirmDeleteBtn = await screen.findByTitle('Confirm Delete');
+        fireEvent.click(confirmDeleteBtn);
+
         await waitFor(() => {
             expect(global.fetch).toHaveBeenCalledWith('/api/highlights/h1', expect.objectContaining({ method: 'DELETE' }));
+            expect(screen.queryByText(/Test highlight 1/)).not.toBeInTheDocument();
         });
     });
 
-    it('can delete a bookmark', async () => {
+    it('can delete a note with two-step confirmation', async () => {
+        render(<NoteSidebar bookId="123" currentPage={1} />);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Test note 1/)).toBeInTheDocument();
+        });
+
+        // First click: triggers "Delete?" state
+        const deleteNoteBtns = screen.getAllByRole('button', { name: /Delete Note/i });
+        fireEvent.click(deleteNoteBtns[0]);
+
+        // Verify the label changed to "Delete?"
+        expect(screen.getByText(/Delete\?/i)).toBeInTheDocument();
+        expect(global.fetch).not.toHaveBeenCalledWith('/api/notes/n1', expect.any(Object));
+
+        // Second click: performs deletion
+        const confirmDeleteBtn = await screen.findByTitle('Confirm Delete');
+        fireEvent.click(confirmDeleteBtn);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledWith('/api/notes/n1', expect.objectContaining({ method: 'DELETE' }));
+            expect(screen.queryByText(/Test note 1/)).not.toBeInTheDocument();
+        });
+    });
+
+    it('can delete a bookmark (single-step)', async () => {
         render(<NoteSidebar bookId="123" currentPage={1} />);
 
         const bookmarksTab = screen.getByText(/Bookmarks/i);

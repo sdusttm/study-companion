@@ -31,6 +31,8 @@
   --glass-bg: rgba(255, 255, 255, 0.45);
   --glass-border: rgba(255, 255, 255, 0.5);
   --glass-blur: blur(20px);
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -55,6 +57,8 @@
     --glass-bg: rgba(24, 24, 27, 0.55);
     --glass-border: rgba(255, 255, 255, 0.08);
     --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    --destructive: #f87171;
+    --destructive-foreground: #ffffff;
   }
 }
 

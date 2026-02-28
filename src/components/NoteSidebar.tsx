@@ -499,19 +499,27 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                                                         right: '4px',
                                                                                         background: confirmDeleteNoteId === note.id ? 'var(--destructive)' : 'transparent',
                                                                                         border: 'none',
-                                                                                        color: confirmDeleteNoteId === note.id ? '#fff' : 'var(--muted-foreground)',
+                                                                                        color: confirmDeleteNoteId === note.id ? 'var(--destructive-foreground)' : 'var(--muted-foreground)',
                                                                                         borderRadius: '4px',
                                                                                         transition: 'all 0.2s',
                                                                                         cursor: 'pointer',
-                                                                                        padding: '2px',
+                                                                                        padding: confirmDeleteNoteId === note.id ? '2px 6px' : '2px',
                                                                                         display: 'flex',
                                                                                         alignItems: 'center',
+                                                                                        gap: '4px',
                                                                                         justifyContent: 'center',
-                                                                                        zIndex: 10
+                                                                                        zIndex: 10,
+                                                                                        fontSize: '10px',
+                                                                                        fontWeight: 600
                                                                                     }}
                                                                                     title={confirmDeleteNoteId === note.id ? "Confirm Delete" : "Delete Note"}
                                                                                 >
-                                                                                    {confirmDeleteNoteId === note.id ? <Check size={10} /> : <Trash2 size={10} />}
+                                                                                    {confirmDeleteNoteId === note.id ? (
+                                                                                        <>
+                                                                                            <span>Delete?</span>
+                                                                                            <Check size={10} />
+                                                                                        </>
+                                                                                    ) : <Trash2 size={10} />}
                                                                                 </button>
                                                                             </div>
                                                                         ))}
@@ -565,21 +573,29 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                                         <button
                                                                             className="btn btn-secondary"
                                                                             style={{
-                                                                                padding: '0.375rem',
+                                                                                padding: confirmDeleteHighlightId === highlight.id ? '0.375rem 0.75rem' : '0.375rem',
                                                                                 minHeight: 0,
                                                                                 height: 'auto',
                                                                                 background: confirmDeleteHighlightId === highlight.id ? 'var(--destructive)' : '',
-                                                                                color: confirmDeleteHighlightId === highlight.id ? '#fff' : 'var(--destructive)',
-                                                                                borderRadius: '50%',
+                                                                                color: confirmDeleteHighlightId === highlight.id ? 'var(--destructive-foreground)' : 'var(--destructive)',
+                                                                                borderRadius: confirmDeleteHighlightId === highlight.id ? 'var(--radius-sm)' : '50%',
                                                                                 display: 'flex',
                                                                                 alignItems: 'center',
+                                                                                gap: '4px',
                                                                                 justifyContent: 'center',
-                                                                                transition: 'all 0.2s'
+                                                                                transition: 'all 0.2s',
+                                                                                fontSize: '10px',
+                                                                                fontWeight: 600
                                                                             }}
                                                                             onClick={(e) => deleteHighlight(highlight.id, e)}
                                                                             title={confirmDeleteHighlightId === highlight.id ? "Confirm Delete" : "Delete Highlight"}
                                                                         >
-                                                                            {confirmDeleteHighlightId === highlight.id ? <Check size={12} /> : <Trash2 size={12} />}
+                                                                            {confirmDeleteHighlightId === highlight.id ? (
+                                                                                <>
+                                                                                    <span>Delete?</span>
+                                                                                    <Check size={12} />
+                                                                                </>
+                                                                            ) : <Trash2 size={12} />}
                                                                         </button>
                                                                     </div>
                                                                 </div>
