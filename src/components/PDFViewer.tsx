@@ -714,12 +714,12 @@ function HighlightPopover({
                 padding: '0.75rem',
                 borderRadius: 'var(--radius)',
                 width: '260px',
-                boxShadow: 'var(--shadow-lg)',
+                boxShadow: '0 4px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '0.5rem',
-                border: '1px solid var(--surface-border)',
-                background: 'rgba(255, 255, 255, 0.95)',
+                border: '1.5px solid rgba(0, 0, 0, 0.12)',
+                background: 'rgba(255, 255, 255, 0.98)',
                 color: 'var(--foreground)',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)'
@@ -824,14 +824,15 @@ function HighlightPopover({
                 {/* Arrow/Tail for the popover */}
                 <div style={{
                     position: 'absolute',
-                    bottom: '-6px',
+                    bottom: '-7px',
                     left: '50%',
                     transform: 'translateX(-50%) rotate(45deg)',
                     width: '12px',
                     height: '12px',
-                    background: 'inherit',
-                    borderRight: '1px solid var(--surface-border)',
-                    borderBottom: '1px solid var(--surface-border)',
+                    background: '#fff',
+                    borderRight: '1.5px solid rgba(0, 0, 0, 0.12)',
+                    borderBottom: '1.5px solid rgba(0, 0, 0, 0.12)',
+                    zIndex: -1
                 }} />
             </div>
         </div>
