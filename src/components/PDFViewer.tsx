@@ -86,7 +86,6 @@ export function PDFViewer({
     const highlightPluginInstanceRef = useRef<any>(null);
 
     const handleDeleteHighlight = useCallback(async (id: string) => {
-        if (!confirm("Are you sure you want to delete this highlight?")) return;
         try {
             const res = await fetch(`/api/highlights/${id}`, { method: 'DELETE' });
             if (res.ok) {
@@ -118,7 +117,6 @@ export function PDFViewer({
     }, []);
 
     const handleDeleteNote = useCallback(async (highlightId: string, noteId: string) => {
-        if (!confirm("Are you sure you want to delete this note?")) return;
         try {
             const res = await fetch(`/api/notes/${noteId}`, {
                 method: 'DELETE'
@@ -689,6 +687,8 @@ function HighlightPopover({
     const [isAdding, setIsAdding] = useState(false);
     const [newNote, setNewNote] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const [confirmDeleteNoteId, setConfirmDeleteNoteId] = useState<string | null>(null);
+    const [confirmDeleteHighlight, setConfirmDeleteHighlight] = useState(false);
 
     const handleAdd = async () => {
         if (!newNote.trim()) return;
@@ -697,6 +697,26 @@ function HighlightPopover({
         setIsSaving(false);
         setIsAdding(false);
         setNewNote("");
+    };
+
+    const handleDeleteNoteClick = (highlightId: string, noteId: string) => {
+        if (confirmDeleteNoteId !== noteId) {
+            setConfirmDeleteNoteId(noteId);
+            setTimeout(() => setConfirmDeleteNoteId(null), 3000);
+            return;
+        }
+        onDeleteNote(highlightId, noteId);
+        setConfirmDeleteNoteId(null);
+    };
+
+    const handleDeleteHighlightClick = (id: string) => {
+        if (!confirmDeleteHighlight) {
+            setConfirmDeleteHighlight(true);
+            setTimeout(() => setConfirmDeleteHighlight(false), 3000);
+            return;
+        }
+        onDelete(id);
+        setConfirmDeleteHighlight(false);
     };
 
     if (!highlight) return null;
@@ -745,20 +765,27 @@ function HighlightPopover({
                                     {note.content}
                                 </p>
                                 <button
-                                    onClick={() => onDeleteNote(highlight.id, note.id)}
+                                    onClick={() => handleDeleteNoteClick(highlight.id, note.id)}
                                     style={{
                                         position: 'absolute',
                                         top: '2px',
                                         right: '2px',
-                                        background: 'transparent',
+                                        background: confirmDeleteNoteId === note.id ? 'var(--destructive)' : 'transparent',
                                         border: 'none',
-                                        color: 'var(--muted-foreground)',
+                                        color: confirmDeleteNoteId === note.id ? '#fff' : 'var(--muted-foreground)',
+                                        borderRadius: '4px',
                                         cursor: 'pointer',
                                         padding: '2px',
-                                        opacity: 0.6
+                                        opacity: 1,
+                                        transition: 'all 0.2s',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        zIndex: 10
                                     }}
+                                    title={confirmDeleteNoteId === note.id ? "Confirm Delete" : "Delete Note"}
                                 >
-                                    <Trash2 size={10} />
+                                    {confirmDeleteNoteId === note.id ? <Check size={10} /> : <Trash2 size={10} />}
                                 </button>
                             </div>
                         ))}
@@ -805,11 +832,22 @@ function HighlightPopover({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <button
                             className="btn btn-secondary"
-                            style={{ padding: '0.25rem', borderRadius: '50%', color: 'var(--destructive)', height: 'auto', minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            onClick={() => onDelete(highlight.id)}
-                            title="Delete Highlight"
+                            style={{
+                                padding: '0.25rem',
+                                borderRadius: '50%',
+                                background: confirmDeleteHighlight ? 'var(--destructive)' : '',
+                                color: confirmDeleteHighlight ? '#fff' : 'var(--destructive)',
+                                height: 'auto',
+                                minHeight: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s'
+                            }}
+                            onClick={() => handleDeleteHighlightClick(highlight.id)}
+                            title={confirmDeleteHighlight ? "Confirm Delete" : "Delete Highlight"}
                         >
-                            <Trash2 size={12} />
+                            {confirmDeleteHighlight ? <Check size={12} /> : <Trash2 size={12} />}
                         </button>
                         <button
                             className="btn btn-secondary"

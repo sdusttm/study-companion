@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { Loader2, Send, Trash2 } from "lucide-react";
+import { Check, Loader2, Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface Bookmark {
@@ -48,6 +48,10 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
 
     // Filters
     const [showNotesOnly, setShowNotesOnly] = useState(false);
+
+    // Deletion Confirmation
+    const [confirmDeleteNoteId, setConfirmDeleteNoteId] = useState<string | null>(null);
+    const [confirmDeleteHighlightId, setConfirmDeleteHighlightId] = useState<string | null>(null);
 
     const router = useRouter();
     const fetchBookmarks = () => {
@@ -168,21 +172,27 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
 
     const handleDeleteNote = async (highlightId: string, noteId: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!confirm("Are you sure you want to delete this note?")) return;
+        if (confirmDeleteNoteId !== noteId) {
+            setConfirmDeleteNoteId(noteId);
+            setTimeout(() => setConfirmDeleteNoteId(null), 3000);
+            return;
+        }
 
         try {
             const res = await fetch(`/api/notes/${noteId}`, {
                 method: "DELETE",
             });
             if (res.ok) {
-                setHighlights(prev => prev.map(h =>
-                    h.id === highlightId ? { ...h, notes: h.notes.filter(n => n.id !== noteId) } : h
+                setHighlights((prev) => prev.map(h =>
+                    h.id === highlightId ? { ...h, notes: h.notes!.filter(n => n.id !== noteId) } : h
                 ));
             } else {
                 alert("Failed to delete note");
             }
         } catch (error) {
             console.error(error);
+        } finally {
+            setConfirmDeleteNoteId(null);
         }
     };
 
@@ -228,6 +238,12 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
 
     const deleteHighlight = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
+        if (confirmDeleteHighlightId !== id) {
+            setConfirmDeleteHighlightId(id);
+            setTimeout(() => setConfirmDeleteHighlightId(null), 3000);
+            return;
+        }
+
         try {
             const res = await fetch(`/api/highlights/${id}`, { method: 'DELETE' });
             if (res.ok) {
@@ -239,6 +255,8 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
             }
         } catch (err) {
             console.error(err);
+        } finally {
+            setConfirmDeleteHighlightId(null);
         }
     };
 
@@ -479,18 +497,21 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                                                         position: 'absolute',
                                                                                         top: '4px',
                                                                                         right: '4px',
-                                                                                        background: 'transparent',
+                                                                                        background: confirmDeleteNoteId === note.id ? 'var(--destructive)' : 'transparent',
                                                                                         border: 'none',
-                                                                                        color: 'var(--muted-foreground)',
+                                                                                        color: confirmDeleteNoteId === note.id ? '#fff' : 'var(--muted-foreground)',
+                                                                                        borderRadius: '4px',
+                                                                                        transition: 'all 0.2s',
                                                                                         cursor: 'pointer',
                                                                                         padding: '2px',
                                                                                         display: 'flex',
                                                                                         alignItems: 'center',
-                                                                                        justifyContent: 'center'
+                                                                                        justifyContent: 'center',
+                                                                                        zIndex: 10
                                                                                     }}
-                                                                                    title="Delete Note"
+                                                                                    title={confirmDeleteNoteId === note.id ? "Confirm Delete" : "Delete Note"}
                                                                                 >
-                                                                                    <Trash2 size={10} />
+                                                                                    {confirmDeleteNoteId === note.id ? <Check size={10} /> : <Trash2 size={10} />}
                                                                                 </button>
                                                                             </div>
                                                                         ))}
@@ -543,11 +564,22 @@ export function NoteSidebar({ bookId, currentPage }: { bookId: string; currentPa
                                                                         )}
                                                                         <button
                                                                             className="btn btn-secondary"
-                                                                            style={{ padding: '0.375rem', minHeight: 0, height: 'auto', color: 'var(--destructive)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                                            style={{
+                                                                                padding: '0.375rem',
+                                                                                minHeight: 0,
+                                                                                height: 'auto',
+                                                                                background: confirmDeleteHighlightId === highlight.id ? 'var(--destructive)' : '',
+                                                                                color: confirmDeleteHighlightId === highlight.id ? '#fff' : 'var(--destructive)',
+                                                                                borderRadius: '50%',
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                justifyContent: 'center',
+                                                                                transition: 'all 0.2s'
+                                                                            }}
                                                                             onClick={(e) => deleteHighlight(highlight.id, e)}
-                                                                            title="Delete Highlight"
+                                                                            title={confirmDeleteHighlightId === highlight.id ? "Confirm Delete" : "Delete Highlight"}
                                                                         >
-                                                                            <Trash2 size={12} />
+                                                                            {confirmDeleteHighlightId === highlight.id ? <Check size={12} /> : <Trash2 size={12} />}
                                                                         </button>
                                                                     </div>
                                                                 </div>
