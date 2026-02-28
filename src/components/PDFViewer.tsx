@@ -3,7 +3,18 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, BookmarkPlus, Maximize, Trash2, X, Edit3, Check } from "lucide-react";
+import {
+    ArrowLeft,
+    ChevronLeft,
+    ChevronRight,
+    X,
+    Search as SearchIcon,
+    Bookmark,
+    ZoomIn,
+    ZoomOut,
+    Maximize,
+    Minimize
+} from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 
 // react-pdf-viewer imports
@@ -11,10 +22,14 @@ import { Worker, Viewer, SpecialZoomLevel, DocumentLoadEvent, PageChangeEvent, S
 import { highlightPlugin, Trigger, RenderHighlightTargetProps, RenderHighlightsProps } from '@react-pdf-viewer/highlight';
 import { pageNavigationPlugin } from '@react-pdf-viewer/page-navigation';
 import { scrollModePlugin } from '@react-pdf-viewer/scroll-mode';
+import { searchPlugin } from '@react-pdf-viewer/search';
 
 import '@react-pdf-viewer/core/lib/styles/index.css';
 import '@react-pdf-viewer/highlight/lib/styles/index.css';
 import '@react-pdf-viewer/page-navigation/lib/styles/index.css';
+import '@react-pdf-viewer/search/lib/styles/index.css';
+
+import { HighlightPopover } from "./HighlightPopover";
 
 interface Note {
     id: string;
@@ -32,7 +47,6 @@ interface Highlight {
     position: any;
 }
 
-// Re-using same UI components for existing highlights
 export function PDFViewer({
     pdfUrl,
     bookId,
@@ -46,44 +60,102 @@ export function PDFViewer({
     currentPage: number;
     onPageChange: (page: number) => void;
 }) {
-    const [numPages, setNumPages] = useState<number | null>(null);
-    const [scale, setScale] = useState<number | SpecialZoomLevel>(SpecialZoomLevel.PageWidth);
-    const router = useRouter();
-    const [pageInput, setPageInput] = useState(currentPage.toString());
-    const debouncedPage = useDebounce(currentPage, 1000);
-    const [isBookmarking, setIsBookmarking] = useState(false);
+    // --- 1. Ref Bridges for Stability ---
+    const viewerContainerRef = useRef<HTMLDivElement>(null);
+    const highlightsRef = useRef<Highlight[]>([]);
+    const activeHighlightIdRef = useRef<string | null>(null);
+    const isProgrammaticScrollRef = useRef(false);
+    const internalPageRef = useRef(currentPage);
+    const bookIdRef = useRef(bookId);
+    const hasHydratedRef = useRef(false);
+    const isLayoutSettlingRef = useRef(true);
 
+    // --- 2. State Hooks ---
+    const [numPages, setNumPages] = useState<number | null>(null);
+    const [pageInput, setPageInput] = useState(currentPage.toString());
+    const [scale, setScale] = useState<number | SpecialZoomLevel>(SpecialZoomLevel.PageWidth);
     const [highlights, setHighlights] = useState<Highlight[]>([]);
     const [isLoadingHighlights, setIsLoadingHighlights] = useState(true);
-
-    const isProgrammaticScrollRef = useRef(false);
-
-    // Initial jump state flag
-    const [initialJumpDone, setInitialJumpDone] = useState(false);
-
-    // In-place editing state
     const [activeHighlightId, setActiveHighlightId] = useState<string | null>(null);
     const [popoverPosition, setPopoverPosition] = useState<{ left: number, top: number } | null>(null);
-    const viewerContainerRef = useRef<HTMLDivElement>(null);
+    const [isHydrated, setIsHydrated] = useState(false);
+    const [isSavingBookmark, setIsSavingBookmark] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
-    // Use refs for latest state to keep plugin callbacks stable
-    const highlightsRef = useRef(highlights);
-    const activeHighlightIdRef = useRef(activeHighlightId);
+    // --- 3. Custom Hooks & Router ---
+    const router = useRouter();
+    const debouncedPage = useDebounce(currentPage, 1000);
+
+    // --- 4. Callbacks ---
+    useEffect(() => { bookIdRef.current = bookId; }, [bookId]);
+    useEffect(() => { highlightsRef.current = highlights; }, [highlights]);
+    useEffect(() => { activeHighlightIdRef.current = activeHighlightId; }, [activeHighlightId]);
+
+    const handleSaveBookmark = useCallback(async () => {
+        if (isSavingBookmark) return;
+        setIsSavingBookmark(true);
+        try {
+            const res = await fetch(`/api/books/${bookIdRef.current}/bookmarks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pageNumber: currentPage })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                window.dispatchEvent(new CustomEvent('bookmark-added', { detail: data.bookmark }));
+            }
+        } catch (error) {
+            console.error("Save bookmark error:", error);
+        } finally {
+            setIsSavingBookmark(false);
+        }
+    }, [currentPage, isSavingBookmark]);
+
+    const handleToggleFullscreen = useCallback(() => {
+        if (!viewerContainerRef.current) return;
+        if (!document.fullscreenElement) {
+            viewerContainerRef.current.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+            });
+            setIsFullscreen(true);
+        } else {
+            document.exitFullscreen();
+            setIsFullscreen(false);
+        }
+    }, []);
 
     useEffect(() => {
-        highlightsRef.current = highlights;
-    }, [highlights]);
+        const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, []);
 
-    useEffect(() => {
-        activeHighlightIdRef.current = activeHighlightId;
-    }, [activeHighlightId]);
+    const adjustScrollOffset = useCallback(() => {
+        setTimeout(() => {
+            if (viewerContainerRef.current) {
+                const scrollContainer = viewerContainerRef.current.querySelector('.rpv-core__inner-pages');
+                if (scrollContainer) {
+                    const viewportHeight = viewerContainerRef.current.clientHeight;
+                    scrollContainer.scrollTop -= (viewportHeight * 0.25);
+                }
+            }
+        }, 350);
+    }, []);
 
-    const pageNavigationPluginInstance = pageNavigationPlugin();
-    const scrollModePluginInstance = scrollModePlugin();
-    const { jumpToPage } = pageNavigationPluginInstance;
-
-    // Maintain a ref to the latest highlight plugin instance for async callbacks
-    const highlightPluginInstanceRef = useRef<any>(null);
+    const handleSaveHighlight = useCallback(async (highlightDraft: any) => {
+        try {
+            const res = await fetch(`/api/books/${bookIdRef.current}/highlights`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(highlightDraft)
+            });
+            if (res.ok) {
+                const saved = await res.json();
+                setHighlights(prev => [...prev, saved]);
+                window.dispatchEvent(new CustomEvent('highlight-added', { detail: saved }));
+                setActiveHighlightId(saved.id);
+            }
+        } catch (error) { console.error(error); }
+    }, []);
 
     const handleDeleteHighlight = useCallback(async (id: string) => {
         try {
@@ -93,16 +165,13 @@ export function PDFViewer({
                 setActiveHighlightId(null);
                 window.dispatchEvent(new CustomEvent('highlight-deleted', { detail: { id } }));
             }
-        } catch (err) {
-            console.error(err);
-        }
+        } catch (err) { console.error(err); }
     }, []);
 
     const handleAddNote = useCallback(async (highlightId: string, content: string) => {
         try {
             const res = await fetch(`/api/highlights/${highlightId}/notes`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content })
             });
             if (res.ok) {
@@ -111,60 +180,35 @@ export function PDFViewer({
                     h.id === highlightId ? { ...h, notes: [...(h.notes || []), newNote] } : h
                 ));
             }
-        } catch (error) {
-            console.error(error);
-        }
+        } catch (error) { console.error(error); }
     }, []);
 
     const handleDeleteNote = useCallback(async (highlightId: string, noteId: string) => {
         try {
-            const res = await fetch(`/api/notes/${noteId}`, {
-                method: 'DELETE'
-            });
+            const res = await fetch(`/api/notes/${noteId}`, { method: 'DELETE' });
             if (res.ok) {
                 setHighlights(prev => prev.map(h =>
-                    h.id === highlightId ? { ...h, notes: h.notes.filter((n: any) => n.id !== noteId) } : h
+                    h.id === highlightId ? { ...h, notes: h.notes.filter(n => n.id !== noteId) } : h
                 ));
             }
-        } catch (error) {
-            console.error(error);
-        }
+        } catch (error) { console.error(error); }
     }, []);
 
-    const handleSaveHighlight = useCallback(async (highlightDraft: any) => {
-        try {
-            const res = await fetch(`/api/books/${bookId}/highlights`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(highlightDraft)
-            });
+    // --- 5. Plugin Initializations (Direct Call) ---
+    // In React 19 + @react-pdf-viewer v3, we call these directly in the component body
+    const pageNavigationPluginInstance = pageNavigationPlugin();
+    const scrollModePluginInstance = scrollModePlugin();
+    const searchPluginInstance = searchPlugin();
 
-            if (res.ok) {
-                const saved = await res.json();
-                setHighlights(prev => [...prev, saved]);
-                window.dispatchEvent(new CustomEvent('highlight-added', { detail: saved }));
-                setActiveHighlightId(saved.id);
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    }, [bookId]);
-
-    // Stabilize the configuration for the highlight plugin
+    // Stable highlight config bridge
     const highlightConfig = useMemo(() => ({
         trigger: Trigger.TextSelection,
         renderHighlightTarget: (renderProps: RenderHighlightTargetProps) => (
             <div className="highlight-popup glass" style={{
-                padding: '0.5rem',
-                borderRadius: 'var(--radius)',
-                display: 'flex',
-                gap: '0.5rem',
-                alignItems: 'center',
-                position: 'absolute',
-                left: `${renderProps.selectionRegion.left}%`,
+                padding: '0.5rem', borderRadius: 'var(--radius)', display: 'flex', gap: '0.5rem',
+                alignItems: 'center', position: 'absolute', left: `${renderProps.selectionRegion.left}%`,
                 top: `${renderProps.selectionRegion.top + renderProps.selectionRegion.height}%`,
-                zIndex: 100,
-                transform: 'translate(0, 8px)'
+                zIndex: 100, transform: 'translate(0, 8px)'
             }}>
                 {[
                     { name: 'Yellow', color: 'rgba(255, 226, 143, 0.8)' },
@@ -175,18 +219,10 @@ export function PDFViewer({
                 ].map((swatch) => (
                     <button
                         key={swatch.name}
-                        title={`Highlight ${swatch.name}`}
                         style={{
-                            width: '24px',
-                            height: '24px',
-                            borderRadius: '50%',
-                            backgroundColor: swatch.color,
-                            border: '1px solid rgba(0,0,0,0.1)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: 0
+                            width: '24px', height: '24px', borderRadius: '50%',
+                            backgroundColor: swatch.color, border: '1px solid rgba(0,0,0,0.1)',
+                            cursor: 'pointer'
                         }}
                         onClick={() => {
                             const newHighlight = {
@@ -196,7 +232,6 @@ export function PDFViewer({
                                 comment: '',
                                 pageNumber: renderProps.highlightAreas[0].pageIndex + 1
                             };
-
                             renderProps.toggle();
                             handleSaveHighlight(newHighlight);
                         }}
@@ -209,50 +244,30 @@ export function PDFViewer({
                 if (!Array.isArray(h.position)) return false;
                 return h.position.some((area: any) => area.pageIndex === renderProps.pageIndex);
             });
-
             return (
                 <div key={`highlights-${renderProps.pageIndex}`}>
                     {pageHighlights.map(h => {
                         const areasOnPage = h.position.filter((area: any) => area.pageIndex === renderProps.pageIndex);
                         const colorMap: Record<string, string> = {
-                            'yellow': 'rgba(255, 226, 143, 0.4)',
-                            'green': 'rgba(172, 236, 172, 0.4)',
-                            'blue': 'rgba(164, 203, 255, 0.4)',
-                            'pink': 'rgba(255, 179, 217, 0.4)',
+                            'yellow': 'rgba(255, 226, 143, 0.4)', 'green': 'rgba(172, 236, 172, 0.4)',
+                            'blue': 'rgba(164, 203, 255, 0.4)', 'pink': 'rgba(255, 179, 217, 0.4)',
                             'purple': 'rgba(219, 185, 255, 0.4)'
                         };
                         const bgColor = colorMap[h.color || 'yellow'] || colorMap['yellow'];
                         const isActive = h.id === activeHighlightIdRef.current;
-
                         return areasOnPage.map((area: any, idx: number) => (
                             <div
                                 key={`${h.id}-${idx}`}
-                                style={{
-                                    position: 'absolute',
-                                    ...renderProps.getCssProperties(area, renderProps.rotation),
-                                    pointerEvents: 'none',
-                                    zIndex: isActive ? 1000 : 100 // High zIndex to be above text layer
-                                }}
+                                style={{ position: 'absolute', ...renderProps.getCssProperties(area, renderProps.rotation), pointerEvents: 'none', zIndex: isActive ? 1000 : 100 }}
                             >
                                 <div
                                     data-highlight-id={h.id}
                                     style={{
-                                        width: '100%',
-                                        height: '100%',
-                                        backgroundColor: bgColor,
-                                        mixBlendMode: 'multiply',
-                                        pointerEvents: 'auto',
-                                        cursor: 'pointer',
-                                        border: isActive ? '2px solid var(--primary)' : 'none',
-                                        borderRadius: '2px',
-                                        userSelect: 'none'
+                                        width: '100%', height: '100%', backgroundColor: bgColor,
+                                        mixBlendMode: 'multiply', pointerEvents: 'auto', cursor: 'pointer',
+                                        border: isActive ? '2px solid var(--primary)' : 'none', borderRadius: '2px'
                                     }}
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        setActiveHighlightId(h.id);
-                                    }}
-                                    title="Click to view/edit note"
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveHighlightId(h.id); }}
                                 />
                             </div>
                         ));
@@ -260,175 +275,65 @@ export function PDFViewer({
                 </div>
             );
         }
-    }), [handleSaveHighlight]); // Only changes if handleSaveHighlight changes (which is stable)
+    }), [handleSaveHighlight]);
 
-    // Core highlight plugin instantiation
     const highlightPluginInstance = highlightPlugin(highlightConfig);
+    const { jumpToPage } = pageNavigationPluginInstance;
+    const { Search } = searchPluginInstance;
 
-    // Update ref to current instance
+    // --- 6. Effects ---
+    useEffect(() => { setIsHydrated(true); }, []);
+    useEffect(() => { setPageInput(currentPage.toString()); }, [currentPage]);
+
+    // Popover Position Sync
     useEffect(() => {
-        highlightPluginInstanceRef.current = highlightPluginInstance;
-    }, [highlightPluginInstance]);
-
-    // Update popover position when activeHighlightId changes or during scroll
-    useEffect(() => {
-        if (!activeHighlightId || !viewerContainerRef.current) {
-            setPopoverPosition(null);
-            return;
-        }
-
-        let retryCount = 0;
-        const maxRetries = 10;
-        let timeoutId: NodeJS.Timeout;
-
+        if (!activeHighlightId || !viewerContainerRef.current) { setPopoverPosition(null); return; }
         const updatePosition = () => {
-            const highlightElement = viewerContainerRef.current?.querySelector(`[data-highlight-id="${activeHighlightId}"]`);
-            if (highlightElement) {
-                const highlightRect = highlightElement.getBoundingClientRect();
+            const el = viewerContainerRef.current?.querySelector(`[data-highlight-id="${activeHighlightId}"]`);
+            if (el) {
+                const rect = el.getBoundingClientRect();
                 const containerRect = viewerContainerRef.current!.getBoundingClientRect();
-
-                setPopoverPosition({
-                    left: highlightRect.left - containerRect.left + (highlightRect.width / 2),
-                    top: highlightRect.top - containerRect.top
-                });
-            } else if (retryCount < maxRetries) {
-                retryCount++;
-                timeoutId = setTimeout(updatePosition, 100);
+                setPopoverPosition({ left: rect.left - containerRect.left + (rect.width / 2), top: rect.top - containerRect.top });
             }
         };
-
         updatePosition();
-
-        // Listen for scroll events in the PDF viewer's scrolling container
         const scrollContainer = viewerContainerRef.current.querySelector('.rpv-core__inner-pages');
         if (scrollContainer) {
             scrollContainer.addEventListener('scroll', updatePosition);
             window.addEventListener('resize', updatePosition);
-            return () => {
-                scrollContainer.removeEventListener('scroll', updatePosition);
-                window.removeEventListener('resize', updatePosition);
-                if (timeoutId) clearTimeout(timeoutId);
-            };
+            return () => { scrollContainer.removeEventListener('scroll', updatePosition); window.removeEventListener('resize', updatePosition); };
         }
-        return () => {
-            if (timeoutId) clearTimeout(timeoutId);
-        };
     }, [activeHighlightId]);
 
-    // Listen to sidebar click jump events
+    // Data Fetching
     useEffect(() => {
-        const handleNavigateToHighlight = (e: CustomEvent<{ highlightId: string }>) => {
-            const h = highlightsRef.current.find(item => item.id === e.detail.highlightId);
-            if (h && Array.isArray(h.position) && h.position.length > 0) {
-                // @react-pdf-viewer is 0-indexed internally
-                const targetPageIndex = h.position[0].pageIndex;
-                const newPage = targetPageIndex + 1;
-
-                isProgrammaticScrollRef.current = true;
-                internalPageRef.current = newPage;
-
-                // Sync parent state first to update page indicators
-                if (newPage !== currentPage) {
-                    onPageChange(newPage);
-                }
-
-                // Set active highlight to open popover
-                setActiveHighlightId(h.id);
-
-                // Small delay to ensure React state update (onPageChange) has started/settled
-                // and to allow the viewer to prepare for the jump
-                setTimeout(() => {
-                    const areaWithContext = {
-                        ...h.position[0],
-                        top: Math.max(0, h.position[0].top - 5)
-                    };
-
-                    try {
-                        // Always use the latest plugin instance via ref
-                        if (highlightPluginInstanceRef.current) {
-                            highlightPluginInstanceRef.current.jumpToHighlightArea(areaWithContext);
-                        }
-                    } catch (err) {
-                        console.error("PDFViewer: Failed to jump", err);
-                        // Fallback to simple page jump if highlight jump fails
-                        jumpToPage(targetPageIndex);
-                    }
-
-                    // Keep programmatic scroll lock for a bit longer to absorb bounce events
-                    setTimeout(() => {
-                        isProgrammaticScrollRef.current = false;
-                    }, 1000);
-                }, 50);
-            }
-        };
-
-        window.addEventListener('navigate-to-highlight', handleNavigateToHighlight as EventListener);
-        return () => window.removeEventListener('navigate-to-highlight', handleNavigateToHighlight as EventListener);
-    }, [highlightPluginInstance, jumpToPage, currentPage, onPageChange]);
-
-    // Fetch highlights and listen for external deletions
-    useEffect(() => {
-        const fetchHighlights = async () => {
+        (async () => {
             try {
                 const res = await fetch(`/api/books/${bookId}/highlights`);
                 const data = await res.json();
-                if (Array.isArray(data)) {
-                    setHighlights(data.map((h: any) => ({
-                        ...h,
-                        position: h.position // Keeping the raw JSON array of highlightAreas
-                    })));
-                }
-            } catch (err) {
-                console.error("Failed to fetch highlights", err);
-            } finally {
-                setIsLoadingHighlights(false);
-            }
-        };
-
-        fetchHighlights();
-
+                if (Array.isArray(data)) setHighlights(data);
+            } catch (err) { console.error(err); } finally { setIsLoadingHighlights(false); }
+        })();
         const handleHighlightDeleted = (e: Event) => {
-            const customEvent = e as CustomEvent;
-            if (customEvent.detail && customEvent.detail.id) {
-                setHighlights(prev => prev.filter(h => h.id !== customEvent.detail.id));
-            }
+            const detail = (e as CustomEvent).detail;
+            if (detail?.id) setHighlights(prev => prev.filter(h => h.id !== detail.id));
         };
-
         window.addEventListener('highlight-deleted', handleHighlightDeleted);
         return () => window.removeEventListener('highlight-deleted', handleHighlightDeleted);
     }, [bookId]);
 
-    const [hasMounted, setHasMounted] = useState(false);
-
-    // Save reading progress silently
+    // Progress Saving
     useEffect(() => {
-        if (!hasMounted) {
-            setHasMounted(true);
-            return;
-        }
-
-        // Prevent aggressive saves on initial layout hydration
+        if (!isHydrated) return;
         if (debouncedPage && debouncedPage !== 1) {
             fetch(`/api/books/${bookId}/progress`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ lastPage: debouncedPage })
             }).catch(console.error);
         }
-    }, [debouncedPage, bookId, hasMounted]);
+    }, [debouncedPage, bookId, isHydrated]);
 
-    // Update input box purely for visual sync
-    useEffect(() => {
-        setPageInput(currentPage.toString());
-    }, [currentPage]);
-
-    // Lock to prevent scroll bounce during hydration
-    const isLayoutSettlingRef = useRef(true);
-    const hasHydratedRef = useRef(false);
-    const internalPageRef = useRef(currentPage);
-
-    // Watch for external page changes (e.g., clicking a note in sidebar)
-    // When the prop diverges from our internal tracker, it's an external jump command.
+    // External Page Sync
     useEffect(() => {
         if (numPages && currentPage !== internalPageRef.current) {
             internalPageRef.current = currentPage;
@@ -437,210 +342,185 @@ export function PDFViewer({
         }
     }, [currentPage, numPages, jumpToPage]);
 
-    // Perform the initial jump on mount without triggering scroll hooks
+    // Initial Jump
     useEffect(() => {
         if (numPages && !hasHydratedRef.current) {
             hasHydratedRef.current = true;
-
-            // Wait 100ms for the DOM and virtualized list to settle in the engine
             setTimeout(() => {
-                if (currentPage > 1) {
-                    isProgrammaticScrollRef.current = true;
-                    jumpToPage(currentPage - 1);
-                }
-
-                // Allow another half second for the viewport bounce math to finish 
-                // before we re-enable user page tracking
-                setTimeout(() => {
-                    isLayoutSettlingRef.current = false;
-                }, 500);
+                if (currentPage > 1) { isProgrammaticScrollRef.current = true; jumpToPage(currentPage - 1); }
+                setTimeout(() => { isLayoutSettlingRef.current = false; }, 500);
             }, 100);
         }
     }, [numPages, currentPage, jumpToPage]);
 
-    const handlePageSubmit = (e: React.FormEvent | React.FocusEvent) => {
-        e.preventDefault();
-        const pageNumber = parseInt(pageInput, 10);
-        if (!isNaN(pageNumber) && pageNumber >= 1 && (numPages ? pageNumber <= numPages : true)) {
-            isProgrammaticScrollRef.current = true;
-            internalPageRef.current = pageNumber;
-            jumpToPage(pageNumber - 1);
-            onPageChange(pageNumber);
-        } else {
-            setPageInput(currentPage.toString());
-        }
-    };
+    // Navigate to Highlight
+    useEffect(() => {
+        const handleNavigate = (e: Event) => {
+            const h = highlightsRef.current.find(item => item.id === (e as CustomEvent).detail.highlightId);
+            if (h && Array.isArray(h.position) && h.position.length > 0) {
+                const targetPageIndex = h.position[0].pageIndex;
+                const newPage = targetPageIndex + 1;
+                isProgrammaticScrollRef.current = true;
+                internalPageRef.current = newPage;
+                if (newPage !== currentPage) onPageChange(newPage);
+                setActiveHighlightId(h.id);
+                setTimeout(() => {
+                    const viewportHeight = viewerContainerRef.current?.clientHeight || 0;
+                    const pageElement = viewerContainerRef.current?.querySelector('.rpv-core__page');
+                    const pageHeight = pageElement?.clientHeight || 1000;
+                    // 25% of viewport as a percentage of page height
+                    const offset = (0.25 * viewportHeight / pageHeight) * 100;
 
-    const changePage = (offset: number) => {
-        const newPage = Math.min(Math.max(1, currentPage + offset), numPages || 1);
-        isProgrammaticScrollRef.current = true;
-        internalPageRef.current = newPage;
-        jumpToPage(newPage - 1);
-        onPageChange(newPage);
-    };
-
-    const changeScale = (offset: number) => {
-        setScale(prev => {
-            const current = typeof prev === 'string' ? 1.0 : prev;
-            return Math.min(Math.max(0.5, current + offset), 3.0);
-        });
-    };
-
-    const handleAddBookmark = async () => {
-        setIsBookmarking(true);
-        try {
-            const res = await fetch(`/api/books/${bookId}/bookmarks`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ pageNumber: currentPage })
-            });
-            if (res.ok) {
-                window.dispatchEvent(new CustomEvent('bookmark-added'));
+                    highlightPluginInstance.jumpToHighlightArea({
+                        ...h.position[0],
+                        top: Math.max(0, h.position[0].top - offset)
+                    });
+                    setTimeout(() => { isProgrammaticScrollRef.current = false; }, 1000);
+                }, 50);
             }
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setIsBookmarking(false);
-        }
-    };
+        };
+        window.addEventListener('navigate-to-highlight', handleNavigate);
+        return () => window.removeEventListener('navigate-to-highlight', handleNavigate);
+    }, [currentPage, onPageChange, jumpToPage, highlightPluginInstance]);
 
-    const handleDocumentLoad = (e: DocumentLoadEvent) => {
-        setNumPages(e.doc.numPages);
-    };
-
+    // --- Render Helpers ---
+    const handleDocumentLoad = (e: DocumentLoadEvent) => setNumPages(e.doc.numPages);
     const handlePageChange = (e: PageChangeEvent) => {
-        if (isLayoutSettlingRef.current) {
-            // Actively shield the parent state from rogue bounce events (like jump to 0) during hydration
-            return;
-        }
-
-        if (isProgrammaticScrollRef.current) {
-            // Ignore the scroll event generated by our own programmatic jumpToPage command
-            isProgrammaticScrollRef.current = false;
-            return;
-        }
-
-        const newPage = e.currentPage + 1;
-        if (newPage !== currentPage) {
-            internalPageRef.current = newPage;
-            onPageChange(newPage);
+        if (isProgrammaticScrollRef.current) return;
+        const pageIdx = (e as any).pageIndex ?? (e as any).pageNumber;
+        if (pageIdx !== undefined) {
+            const actualPage = pageIdx + 1;
+            if (actualPage !== currentPage) { internalPageRef.current = actualPage; onPageChange(actualPage); }
         }
     };
+
+    if (!isHydrated) return null;
 
     return (
-        <div className="pdf-viewer" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            {/* Controls Bar */}
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div className="glass" style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 1rem',
-                borderBottom: '1px solid var(--surface-border)',
-                position: 'sticky',
-                top: 0,
-                zIndex: 10
+                height: '4rem', padding: '0 1.5rem', display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between', borderBottom: '1px solid var(--surface-border)', zIndex: 20, flexShrink: 0, gap: '1rem'
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+                    <button onClick={() => router.push('/')} className="btn btn-secondary" style={{ padding: '0.5rem', flexShrink: 0 }} title="Back to Dashboard"><ArrowLeft size={20} /></button>
+                    <h2 style={{
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        margin: 0,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        maxWidth: '240px'
+                    }} title={bookTitle}>{bookTitle}</h2>
                     <button
-                        onClick={() => router.push('/')}
                         className="btn btn-secondary"
-                        style={{ padding: '0.4rem', height: 'auto', borderRadius: '50%' }}
-                        title="Back to Dashboard"
-                    >
-                        <ArrowLeft size={16} />
-                    </button>
-                    <h2 style={{ fontSize: '1.125rem', fontWeight: 600, margin: 0 }}>{bookTitle}</h2>
-                    <button
-                        onClick={handleAddBookmark}
-                        disabled={isBookmarking}
-                        className="btn btn-secondary"
-                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', gap: '0.25rem' }}
+                        style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', gap: '0.3rem', flexShrink: 0 }}
+                        onClick={handleSaveBookmark}
+                        disabled={isSavingBookmark}
                         title="Bookmark this page"
                     >
-                        <BookmarkPlus size={14} />
-                        {isBookmarking ? "..." : "Save"}
+                        <Bookmark size={14} fill={isSavingBookmark ? "currentColor" : "none"} />
+                        <span>{isSavingBookmark ? 'Saving...' : 'Save'}</span>
                     </button>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <button className="btn btn-secondary" onClick={() => changePage(-1)} disabled={currentPage <= 1} style={{ padding: '0.5rem' }}>
-                            <ChevronLeft size={16} />
-                        </button>
-                        <form onSubmit={handlePageSubmit} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{ fontSize: '0.875rem' }}>Page</span>
-                            <input
-                                type="text"
-                                value={pageInput}
-                                onChange={(e) => setPageInput(e.target.value)}
-                                onBlur={handlePageSubmit}
-                                className="input-field"
-                                style={{ width: '50px', padding: '0.25rem', textAlign: 'center', height: '32px' }}
-                            />
-                            <span style={{ fontSize: '0.875rem', minWidth: '40px' }}>
-                                of {numPages ?? '--'}
-                            </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
+                    <div className="glass" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.2rem 0.4rem', borderRadius: 'var(--radius)' }}>
+                        <button onClick={() => { if (currentPage > 1) { isProgrammaticScrollRef.current = true; internalPageRef.current = currentPage - 1; jumpToPage(currentPage - 2); onPageChange(currentPage - 1); } }} className="btn btn-secondary" style={{ padding: '0.35rem' }}><ChevronLeft size={14} /></button>
+                        <form onSubmit={(e) => { e.preventDefault(); const p = parseInt(pageInput, 10); if (!isNaN(p) && p >= 1 && (!numPages || p <= numPages)) { isProgrammaticScrollRef.current = true; internalPageRef.current = p; jumpToPage(p - 1); onPageChange(p); } }} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                            <input type="text" value={pageInput} onChange={e => setPageInput(e.target.value)} style={{ width: '32px', textAlign: 'center', background: 'transparent', border: 'none', fontWeight: 600, fontSize: '0.85rem' }} />
+                            <span style={{ color: 'var(--muted-foreground)', fontSize: '0.75rem' }}>of {numPages || '...'}</span>
                         </form>
-                        <button className="btn btn-secondary" onClick={() => changePage(1)} disabled={currentPage >= (numPages || 1)} style={{ padding: '0.5rem' }}>
-                            <ChevronRight size={16} />
+                        <button onClick={() => { if (numPages && currentPage < numPages) { isProgrammaticScrollRef.current = true; internalPageRef.current = currentPage + 1; jumpToPage(currentPage); onPageChange(currentPage + 1); } }} className="btn btn-secondary" style={{ padding: '0.35rem' }}><ChevronRight size={14} /></button>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <div className="glass" style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', padding: '0.2rem', borderRadius: 'var(--radius)' }}>
+                            <button
+                                className="btn btn-secondary"
+                                style={{ padding: '0.35rem' }}
+                                onClick={() => setScale((prev: number | SpecialZoomLevel) => typeof prev === 'number' ? Math.max(0.1, prev - 0.1) : 1.0)}
+                                title="Zoom Out"
+                                data-testid="zoom-out"
+                            >
+                                <ZoomOut size={14} />
+                            </button>
+                            <button
+                                className="btn btn-secondary"
+                                style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', minWidth: '3.5rem' }}
+                                onClick={() => setScale(SpecialZoomLevel.PageWidth)}
+                            >
+                                Fit
+                            </button>
+                            <button
+                                className="btn btn-secondary"
+                                style={{ padding: '0.35rem' }}
+                                onClick={() => setScale((prev: number | SpecialZoomLevel) => typeof prev === 'number' ? prev + 0.1 : 1.2)}
+                                title="Zoom In"
+                                data-testid="zoom-in"
+                            >
+                                <ZoomIn size={14} />
+                            </button>
+                        </div>
+                        <button
+                            className="btn btn-secondary"
+                            style={{ padding: '0.45rem', borderRadius: 'var(--radius)' }}
+                            onClick={handleToggleFullscreen}
+                            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                        >
+                            {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
                         </button>
                     </div>
 
-                    <div style={{ width: '1px', height: '20px', background: 'var(--surface-border)' }} />
+                    <div style={{ width: '1px', height: '1.25rem', background: 'var(--surface-border)', opacity: 0.4 }} />
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <button className="btn btn-secondary" onClick={() => changeScale(-0.2)} disabled={typeof scale === 'number' && scale <= 0.5} style={{ padding: '0.5rem' }} title="Zoom Out">
-                            <ZoomOut size={16} />
-                        </button>
-                        <span style={{ fontSize: '0.875rem', minWidth: '50px', textAlign: 'center' }}>
-                            {typeof scale === 'number' ? `${Math.round(scale * 100)}%` : 'Fit'}
-                        </span>
-                        <button className="btn btn-secondary" onClick={() => changeScale(0.2)} disabled={typeof scale === 'number' && scale >= 3.0} style={{ padding: '0.5rem' }} title="Zoom In">
-                            <ZoomIn size={16} />
-                        </button>
-                        <button className="btn btn-secondary" onClick={() => setScale(SpecialZoomLevel.PageWidth)} disabled={scale === SpecialZoomLevel.PageWidth} title="Fit to Width" style={{ padding: '0.5rem' }}>
-                            <Maximize size={16} />
-                        </button>
-                    </div>
+                    <Search>
+                        {(renderSearchProps) => (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                    <div style={{ position: 'absolute', left: '8px', color: 'var(--muted-foreground)', display: 'flex' }}><SearchIcon size={12} /></div>
+                                    <input
+                                        type="text" className="input-field" placeholder="Search..."
+                                        style={{ width: '150px', padding: '0.2rem 1.75rem 0.2rem 1.75rem', fontSize: '0.8rem', height: '28px' }}
+                                        value={renderSearchProps.keyword}
+                                        onChange={(e) => renderSearchProps.setKeyword(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                if (renderSearchProps.keyword && renderSearchProps.numberOfMatches > 0) {
+                                                    renderSearchProps.jumpToNextMatch();
+                                                    adjustScrollOffset();
+                                                } else if (renderSearchProps.keyword) {
+                                                    renderSearchProps.search();
+                                                }
+                                            }
+                                            e.stopPropagation();
+                                        }}
+                                    />
+                                    {renderSearchProps.keyword && (
+                                        <button onClick={renderSearchProps.clearKeyword} style={{ position: 'absolute', right: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)' }}><X size={12} /></button>
+                                    )}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                                    <button onClick={() => { renderSearchProps.jumpToPreviousMatch(); adjustScrollOffset(); }} className="btn btn-secondary" style={{ padding: '0.35rem' }}><ChevronLeft size={14} /></button>
+                                    <button onClick={() => { renderSearchProps.jumpToNextMatch(); adjustScrollOffset(); }} className="btn btn-secondary" style={{ padding: '0.35rem' }}><ChevronRight size={14} /></button>
+                                </div>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', minWidth: '40px', textAlign: 'center', fontWeight: 500 }}>
+                                    {renderSearchProps.numberOfMatches > 0 ? `${renderSearchProps.currentMatch}/${renderSearchProps.numberOfMatches}` : '0/0'}
+                                </span>
+                            </div>
+                        )}
+                    </Search>
                 </div>
             </div>
 
-            {/* PDF Document Container */}
-            <div
-                ref={viewerContainerRef}
-                style={{
-                    flex: 1,
-                    background: 'var(--muted)',
-                    padding: '2rem',
-                    overflow: 'hidden',
-                    position: 'relative' // Essential for coordinate tracking
-                }}
-            >
-                <div style={{ position: 'relative', width: '100%', height: '100%', maxWidth: '1200px', margin: '0 auto', boxShadow: 'var(--shadow-lg)' }}>
-                    {isLoadingHighlights && (
-                        <div className="glass" style={{
-                            position: 'absolute',
-                            top: '1rem',
-                            right: '1rem',
-                            padding: '0.5rem 1rem',
-                            borderRadius: 'var(--radius)',
-                            zIndex: 10,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            fontSize: '0.875rem',
-                            color: 'var(--muted-foreground)'
-                        }}>
-                            <div className="spinning" style={{ width: '1rem', height: '1rem', border: '2px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
-                            Loading highlights...
-                        </div>
-                    )}
-
+            <div ref={viewerContainerRef} style={{ flex: 1, padding: '2rem', overflow: 'hidden', position: 'relative', background: 'transparent' }}>
+                <div style={{ position: 'relative', width: '100%', height: '100%', maxWidth: '1200px', margin: '0 auto', boxShadow: 'var(--shadow-lg)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
                     <Worker workerUrl={`https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js`}>
                         <Viewer
                             fileUrl={pdfUrl}
                             initialPage={Math.max(0, currentPage - 1)}
-                            plugins={[highlightPluginInstance, pageNavigationPluginInstance, scrollModePluginInstance]}
+                            plugins={[highlightPluginInstance, pageNavigationPluginInstance, scrollModePluginInstance, searchPluginInstance]}
                             onDocumentLoad={handleDocumentLoad}
                             onPageChange={handlePageChange}
                             defaultScale={scale}
@@ -649,7 +529,13 @@ export function PDFViewer({
                     </Worker>
                 </div>
 
-                {/* Portal for HighlightPopover */}
+                {isLoadingHighlights && (
+                    <div className="glass" style={{ position: 'absolute', top: '1rem', right: '1rem', padding: '0.5rem 1rem', borderRadius: 'var(--radius)', zIndex: 10, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+                        <div className="spinning" style={{ width: '1rem', height: '1rem', border: '2px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+                        Loading highlights...
+                    </div>
+                )}
+
                 {activeHighlightId && popoverPosition && createPortal(
                     <HighlightPopover
                         highlight={highlights.find(h => h.id === activeHighlightId)}
@@ -657,243 +543,10 @@ export function PDFViewer({
                         onDelete={handleDeleteHighlight}
                         onAddNote={handleAddNote}
                         onDeleteNote={handleDeleteNote}
-                        containerStyle={{
-                            left: `${popoverPosition.left}px`,
-                            top: `${popoverPosition.top}px`,
-                        }}
+                        containerStyle={{ left: `${popoverPosition.left}px`, top: `${popoverPosition.top}px` }}
                     />,
                     viewerContainerRef.current!
                 )}
-            </div>
-        </div>
-    );
-}
-
-export function HighlightPopover({
-    highlight,
-    onClose,
-    onDelete,
-    onAddNote,
-    onDeleteNote,
-    containerStyle
-}: {
-    highlight: Highlight | undefined,
-    onClose: () => void,
-    onDelete: (id: string) => void,
-    onAddNote: (id: string, content: string) => Promise<void>,
-    onDeleteNote: (highlightId: string, noteId: string) => Promise<void>,
-    containerStyle: React.CSSProperties
-}) {
-    const [isAdding, setIsAdding] = useState(false);
-    const [newNote, setNewNote] = useState("");
-    const [isSaving, setIsSaving] = useState(false);
-    const [confirmDeleteNoteId, setConfirmDeleteNoteId] = useState<string | null>(null);
-    const [confirmDeleteHighlight, setConfirmDeleteHighlight] = useState(false);
-
-    const handleAdd = async () => {
-        if (!newNote.trim()) return;
-        setIsSaving(true);
-        await onAddNote(highlight!.id, newNote.trim());
-        setIsSaving(false);
-        setIsAdding(false);
-        setNewNote("");
-    };
-
-    const handleDeleteNoteClick = (highlightId: string, noteId: string) => {
-        if (confirmDeleteNoteId !== noteId) {
-            setConfirmDeleteNoteId(noteId);
-            setTimeout(() => setConfirmDeleteNoteId(null), 3000);
-            return;
-        }
-        onDeleteNote(highlightId, noteId);
-        setConfirmDeleteNoteId(null);
-    };
-
-    const handleDeleteHighlightClick = (id: string) => {
-        if (!confirmDeleteHighlight) {
-            setConfirmDeleteHighlight(true);
-            setTimeout(() => setConfirmDeleteHighlight(false), 3000);
-            return;
-        }
-        onDelete(id);
-        setConfirmDeleteHighlight(false);
-    };
-
-    if (!highlight) return null;
-
-    return (
-        <div style={{
-            ...containerStyle,
-            position: 'absolute',
-            zIndex: 10000,
-            pointerEvents: 'auto',
-            transform: 'translate(-50%, -100%)', // Center and move above the highlight
-            marginTop: '-10px',
-        }}>
-            <div className="glass" style={{
-                padding: '0.75rem',
-                borderRadius: 'var(--radius)',
-                width: '260px',
-                boxShadow: '0 4px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.5rem',
-                border: '1.5px solid rgba(0, 0, 0, 0.12)',
-                background: 'rgba(255, 255, 255, 0.98)',
-                color: 'var(--foreground)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)'
-            }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Notes</span>
-                    <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '2px', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center' }}>
-                        <X size={12} />
-                    </button>
-                </div>
-
-                {highlight.notes && highlight.notes.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '150px', overflowY: 'auto', paddingRight: '4px' }}>
-                        {highlight.notes.map((note) => (
-                            <div key={note.id} style={{
-                                padding: '0.375rem 0.5rem',
-                                background: 'var(--surface)',
-                                borderRadius: 'var(--radius-sm)',
-                                border: '1px solid var(--surface-border)',
-                                position: 'relative'
-                            }}>
-                                <p style={{ fontSize: '0.75rem', margin: 0, whiteSpace: 'pre-wrap', textAlign: 'left', paddingRight: '16px', lineHeight: '1.3' }}>
-                                    {note.content}
-                                </p>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteNoteClick(highlight.id, note.id);
-                                    }}
-                                    style={{
-                                        position: 'absolute',
-                                        top: '2px',
-                                        right: '2px',
-                                        background: confirmDeleteNoteId === note.id ? 'var(--destructive)' : 'transparent',
-                                        border: 'none',
-                                        color: confirmDeleteNoteId === note.id ? 'var(--destructive-foreground)' : 'var(--muted-foreground)',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        padding: confirmDeleteNoteId === note.id ? '1px 4px' : '2px',
-                                        opacity: 1,
-                                        transition: 'all 0.2s',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '2px',
-                                        justifyContent: 'center',
-                                        zIndex: 10,
-                                        fontSize: '9px',
-                                        fontWeight: 600
-                                    }}
-                                    title={confirmDeleteNoteId === note.id ? "Confirm Delete" : "Delete Note"}
-                                >
-                                    {confirmDeleteNoteId === note.id ? (
-                                        <>
-                                            <span>Delete?</span>
-                                            <Check size={8} />
-                                        </>
-                                    ) : <Trash2 size={10} />}
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {isAdding ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                        <textarea
-                            autoFocus
-                            value={newNote}
-                            onChange={(e) => setNewNote(e.target.value)}
-                            className="input-field"
-                            placeholder="Add a new note..."
-                            style={{
-                                width: '100%',
-                                minHeight: '40px',
-                                fontSize: '0.75rem',
-                                padding: '0.375rem',
-                                resize: 'vertical',
-                                background: 'var(--background)',
-                                color: 'var(--foreground)'
-                            }}
-                        />
-                        <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
-                            <button
-                                className="btn btn-secondary"
-                                style={{ padding: '0.2rem 0.4rem', fontSize: '0.65rem', height: 'auto', minHeight: 0 }}
-                                onClick={() => setIsAdding(false)}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                className="btn btn-primary"
-                                style={{ padding: '0.2rem 0.4rem', fontSize: '0.65rem', height: 'auto', minHeight: 0 }}
-                                disabled={isSaving}
-                                onClick={handleAdd}
-                            >
-                                {isSaving ? "Adding..." : "Add"}
-                            </button>
-                        </div>
-                    </div>
-                ) : (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <button
-                            className="btn btn-secondary"
-                            style={{
-                                padding: confirmDeleteHighlight ? '0.2rem 0.5rem' : '0.25rem',
-                                borderRadius: confirmDeleteHighlight ? 'var(--radius-sm)' : '50%',
-                                background: confirmDeleteHighlight ? 'var(--destructive)' : '',
-                                color: confirmDeleteHighlight ? 'var(--destructive-foreground)' : 'var(--destructive)',
-                                height: 'auto',
-                                minHeight: 0,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                justifyContent: 'center',
-                                transition: 'all 0.2s',
-                                fontSize: '10px',
-                                fontWeight: 600
-                            }}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteHighlightClick(highlight.id);
-                            }}
-                            title={confirmDeleteHighlight ? "Confirm Delete" : "Delete Highlight"}
-                        >
-                            {confirmDeleteHighlight ? (
-                                <>
-                                    <span>Delete?</span>
-                                    <Check size={10} />
-                                </>
-                            ) : <Trash2 size={12} />}
-                        </button>
-                        <button
-                            className="btn btn-secondary"
-                            style={{ padding: '0.2rem 0.6rem', fontSize: '0.7rem', borderRadius: '999px', height: 'auto', minHeight: 0 }}
-                            onClick={() => setIsAdding(true)}
-                        >
-                            + Add Note
-                        </button>
-                    </div>
-                )}
-
-                {/* Arrow/Tail for the popover */}
-                <div style={{
-                    position: 'absolute',
-                    bottom: '-7px',
-                    left: '50%',
-                    transform: 'translateX(-50%) rotate(45deg)',
-                    width: '12px',
-                    height: '12px',
-                    background: '#fff',
-                    borderRight: '1.5px solid rgba(0, 0, 0, 0.12)',
-                    borderBottom: '1.5px solid rgba(0, 0, 0, 0.12)',
-                    zIndex: -1
-                }} />
             </div>
         </div>
     );

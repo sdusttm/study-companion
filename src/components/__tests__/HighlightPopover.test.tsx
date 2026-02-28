@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { HighlightPopover } from '../PDFViewer';
+import { HighlightPopover } from '../HighlightPopover';
 
 describe('HighlightPopover component', () => {
     const mockHighlight = {

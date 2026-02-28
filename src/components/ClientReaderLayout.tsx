@@ -48,6 +48,7 @@ export function ClientReaderLayout({ book }: { book: any }) {
         <div style={{ display: 'flex', height: 'calc(100vh - 4.5rem)', overflow: 'hidden' }}>
             <div style={{ flex: 1, borderRight: '1px solid var(--surface-border)', position: 'relative' }}>
                 <PDFViewer
+                    key={book.id}
                     pdfUrl={book.filePath.startsWith("http") ? book.filePath : `/api/books/${book.id}/pdf`}
                     bookId={book.id}
                     bookTitle={book.title}
