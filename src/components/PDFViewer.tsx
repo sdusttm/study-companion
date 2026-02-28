@@ -711,61 +711,62 @@ function HighlightPopover({
             marginTop: '-10px',
         }}>
             <div className="glass" style={{
-                padding: '1rem',
+                padding: '0.75rem',
                 borderRadius: 'var(--radius)',
-                width: '300px',
+                width: '260px',
                 boxShadow: 'var(--shadow-lg)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '0.75rem',
+                gap: '0.5rem',
                 border: '1px solid var(--surface-border)',
                 background: 'rgba(255, 255, 255, 0.95)',
                 color: 'var(--foreground)',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)'
             }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)' }}>Notes</span>
-                    <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--muted-foreground)' }}>
-                        <X size={14} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.025em' }}>Notes</span>
+                    <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '2px', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center' }}>
+                        <X size={12} />
                     </button>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
-                    {highlight.notes && highlight.notes.length > 0 ? (
-                        highlight.notes.map((note) => (
+                {highlight.notes && highlight.notes.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '150px', overflowY: 'auto', paddingRight: '4px' }}>
+                        {highlight.notes.map((note) => (
                             <div key={note.id} style={{
-                                padding: '0.5rem',
+                                padding: '0.375rem 0.5rem',
                                 background: 'var(--surface)',
-                                borderRadius: 'var(--radius)',
+                                borderRadius: 'var(--radius-sm)',
                                 border: '1px solid var(--surface-border)',
                                 position: 'relative'
                             }}>
-                                <p style={{ fontSize: '0.8125rem', margin: 0, whiteSpace: 'pre-wrap', textAlign: 'left', paddingRight: '20px' }}>
+                                <p style={{ fontSize: '0.75rem', margin: 0, whiteSpace: 'pre-wrap', textAlign: 'left', paddingRight: '16px', lineHeight: '1.3' }}>
                                     {note.content}
                                 </p>
                                 <button
                                     onClick={() => onDeleteNote(highlight.id, note.id)}
                                     style={{
                                         position: 'absolute',
-                                        top: '4px',
-                                        right: '4px',
+                                        top: '2px',
+                                        right: '2px',
                                         background: 'transparent',
                                         border: 'none',
                                         color: 'var(--muted-foreground)',
                                         cursor: 'pointer',
-                                        padding: '2px'
+                                        padding: '2px',
+                                        opacity: 0.6
                                     }}
                                 >
                                     <Trash2 size={10} />
                                 </button>
                             </div>
-                        ))
-                    ) : null}
-                </div>
+                        ))}
+                    </div>
+                )}
 
                 {isAdding ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
                         <textarea
                             autoFocus
                             value={newNote}
@@ -774,45 +775,45 @@ function HighlightPopover({
                             placeholder="Add a new note..."
                             style={{
                                 width: '100%',
-                                minHeight: '60px',
-                                fontSize: '0.8125rem',
-                                padding: '0.5rem',
+                                minHeight: '40px',
+                                fontSize: '0.75rem',
+                                padding: '0.375rem',
                                 resize: 'vertical',
                                 background: 'var(--background)',
                                 color: 'var(--foreground)'
                             }}
                         />
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
                             <button
                                 className="btn btn-secondary"
-                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', height: 'auto', minHeight: 0 }}
+                                style={{ padding: '0.2rem 0.4rem', fontSize: '0.65rem', height: 'auto', minHeight: 0 }}
                                 onClick={() => setIsAdding(false)}
                             >
                                 Cancel
                             </button>
                             <button
                                 className="btn btn-primary"
-                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', height: 'auto', minHeight: 0 }}
+                                style={{ padding: '0.2rem 0.4rem', fontSize: '0.65rem', height: 'auto', minHeight: 0 }}
                                 disabled={isSaving}
                                 onClick={handleAdd}
                             >
-                                {isSaving ? "Adding..." : "Add Note"}
+                                {isSaving ? "Adding..." : "Add"}
                             </button>
                         </div>
                     </div>
                 ) : (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <button
                             className="btn btn-secondary"
-                            style={{ padding: '0.4rem', borderRadius: '50%', color: 'var(--destructive)', height: 'auto', minHeight: 0 }}
+                            style={{ padding: '0.25rem', borderRadius: '50%', color: 'var(--destructive)', height: 'auto', minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             onClick={() => onDelete(highlight.id)}
                             title="Delete Highlight"
                         >
-                            <Trash2 size={14} />
+                            <Trash2 size={12} />
                         </button>
                         <button
                             className="btn btn-secondary"
-                            style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', borderRadius: '999px', height: 'auto', minHeight: 0 }}
+                            style={{ padding: '0.2rem 0.6rem', fontSize: '0.7rem', borderRadius: '999px', height: 'auto', minHeight: 0 }}
                             onClick={() => setIsAdding(true)}
                         >
                             + Add Note
