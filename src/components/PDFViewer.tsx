@@ -13,7 +13,8 @@ import {
     ZoomIn,
     ZoomOut,
     Maximize,
-    Minimize
+    Minimize,
+    List
 } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
 
@@ -23,11 +24,13 @@ import { highlightPlugin, Trigger, RenderHighlightTargetProps, RenderHighlightsP
 import { pageNavigationPlugin } from '@react-pdf-viewer/page-navigation';
 import { scrollModePlugin } from '@react-pdf-viewer/scroll-mode';
 import { searchPlugin } from '@react-pdf-viewer/search';
+import { bookmarkPlugin } from '@react-pdf-viewer/bookmark';
 
 import '@react-pdf-viewer/core/lib/styles/index.css';
 import '@react-pdf-viewer/highlight/lib/styles/index.css';
 import '@react-pdf-viewer/page-navigation/lib/styles/index.css';
 import '@react-pdf-viewer/search/lib/styles/index.css';
+import '@react-pdf-viewer/bookmark/lib/styles/index.css';
 
 import { HighlightPopover } from "./HighlightPopover";
 
@@ -81,6 +84,7 @@ export function PDFViewer({
     const [isHydrated, setIsHydrated] = useState(false);
     const [isSavingBookmark, setIsSavingBookmark] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [showIndex, setShowIndex] = useState(false);
 
     // --- 3. Custom Hooks & Router ---
     const router = useRouter();
@@ -199,6 +203,7 @@ export function PDFViewer({
     const pageNavigationPluginInstance = pageNavigationPlugin();
     const scrollModePluginInstance = scrollModePlugin();
     const searchPluginInstance = searchPlugin();
+    const bookmarkPluginInstance = bookmarkPlugin();
 
     // Stable highlight config bridge
     const highlightConfig = useMemo(() => ({
@@ -280,6 +285,7 @@ export function PDFViewer({
     const highlightPluginInstance = highlightPlugin(highlightConfig);
     const { jumpToPage } = pageNavigationPluginInstance;
     const { Search } = searchPluginInstance;
+    const { Bookmarks } = bookmarkPluginInstance;
 
     // --- 6. Effects ---
     useEffect(() => { setIsHydrated(true); }, []);
@@ -415,6 +421,14 @@ export function PDFViewer({
                     }} title={bookTitle}>{bookTitle}</h2>
                     <button
                         className="btn btn-secondary"
+                        style={{ padding: '0.45rem', borderRadius: 'var(--radius)', background: showIndex ? 'var(--primary-light)' : '', color: showIndex ? 'var(--primary)' : '', flexShrink: 0 }}
+                        onClick={() => setShowIndex(!showIndex)}
+                        title="Table of Contents"
+                    >
+                        <List size={16} />
+                    </button>
+                    <button
+                        className="btn btn-secondary"
                         style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem', gap: '0.3rem', flexShrink: 0 }}
                         onClick={handleSaveBookmark}
                         disabled={isSavingBookmark}
@@ -520,7 +534,7 @@ export function PDFViewer({
                         <Viewer
                             fileUrl={pdfUrl}
                             initialPage={Math.max(0, currentPage - 1)}
-                            plugins={[highlightPluginInstance, pageNavigationPluginInstance, scrollModePluginInstance, searchPluginInstance]}
+                            plugins={[highlightPluginInstance, pageNavigationPluginInstance, scrollModePluginInstance, searchPluginInstance, bookmarkPluginInstance]}
                             onDocumentLoad={handleDocumentLoad}
                             onPageChange={handlePageChange}
                             defaultScale={scale}
@@ -548,6 +562,31 @@ export function PDFViewer({
                     viewerContainerRef.current!
                 )}
             </div>
+
+            {showIndex && (
+                <div className="glass" style={{
+                    position: 'absolute',
+                    top: '4rem',
+                    bottom: 0,
+                    left: 0,
+                    width: '300px',
+                    zIndex: 25,
+                    borderRight: '1px solid var(--surface-border)',
+                    overflow: 'auto',
+                    padding: '1rem',
+                    background: 'var(--background)',
+                    boxShadow: '10px 0 30px rgba(0, 0, 0, 0.1)',
+                    transition: 'all 0.3s ease'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h3 style={{ fontSize: '0.875rem', fontWeight: 600, margin: 0 }}>Table of Contents</h3>
+                        <button onClick={() => setShowIndex(false)} className="btn btn-secondary" style={{ padding: '0.25rem' }}><X size={14} /></button>
+                    </div>
+                    <div className="rpv-bookmark__container" style={{ fontSize: '0.875rem' }}>
+                        <Bookmarks />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
